@@ -6,6 +6,14 @@ import {
   type AccountType, type Currency,
 } from '../types'
 
+function moveFocus(index: number) {
+  // 获取当前面板下所有带有 nav-input 类的元素
+  const inputs = formPanel.value?.querySelectorAll('.nav-input') as NodeListOf<HTMLElement>
+  if (inputs && inputs[index]) {
+    inputs[index].focus()
+  }
+}
+
 const { state, toBase, addAccount, updateAccount, removeAccount } = useStore()
 const dragIndex = ref<number | null>(null)
 // 删除确认弹窗
@@ -100,15 +108,15 @@ function cancel() {
       </thead>
       <tbody>
         <tr 
-        v-for="(a, index) in state.accounts"
-        :key="a.id"
-        class="drag-row"
-        :class="{ dragging:dragIndex === index}"
-        draggable="true"
-        @dragstart="onDragStart(index)"
-        @dragover.prevent
-        @drop="onDrop(index)"
-        @dragend="onDragEnd">
+          v-for="(a, index) in state.accounts"
+          :key="a.id"
+          class="drag-row"
+          :class="{ dragging:dragIndex === index}"
+          draggable="true"
+          @dragstart="onDragStart(index)"
+          @dragover.prevent
+          @drop="onDrop(index)"
+          @dragend="onDragEnd">
           <td>
             <span class="drag-handle">⠿</span> {{ a.name }}
           </td>
@@ -130,18 +138,30 @@ function cancel() {
   <section class="panel"  ref="formPanel">
     <h3>{{ editingId ? '编辑账户' : '新增账户' }}</h3>
     <div class="form">
-      <label>名称<input v-model="form.name" /></label>
+      <label>名称
+        <input v-model="form.name" class="nav-input" 
+        @keydown.right="moveFocus(1)" />
+      </label>
       <label>类型
-        <select v-model="form.type">
-          <option v-for="(l, k) in ACCOUNT_TYPE_LABELS" :key="k" :value="k">{{ l }}</option>
+        <select v-model="form.type" class="nav-input" 
+              @keydown.left.prevent="moveFocus(0)"
+              @keydown.right.prevent="moveFocus(2)">
+            <option v-for="(l, k) in ACCOUNT_TYPE_LABELS" :key="k" :value="k">{{ l }}
+          </option>
         </select>
       </label>
       <label>币种
-        <select v-model="form.currency">
+        <select v-model="form.currency" class="nav-input" 
+        @keydown.left.prevent="moveFocus(1)" 
+        @keydown.right.prevent="moveFocus(3)">
           <option v-for="(l, k) in CURRENCY_LABELS" :key="k" :value="k">{{ l }}</option>
         </select>
       </label>
-      <label>当前余额<input type="number" v-model.number="form.balance" /></label>
+      <label>当前余额
+        <input type="number" v-model.number="form.balance" class="nav-input"
+        @keydown.left="moveFocus(2)" 
+        @keydown.enter="submit"/>
+      </label>
     </div>
     <div class="actions">
       <button class="primary" @click="submit">保存账户</button>
