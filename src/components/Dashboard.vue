@@ -6,7 +6,10 @@ import { ACCOUNT_TYPE_LABELS, CURRENCY_SYMBOLS } from '../types'
 const { state, setTab, toBase } = useStore()
 
 const sym = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
-const fmt = (n: number) => state.settings.masked ? '****' : sym.value + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt = (n: number) =>
+  state.settings.masked
+    ? '****'
+    : sym.value + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // 资产结构（按类型占比）
 const structure = computed(() => {
@@ -40,24 +43,19 @@ function arc(start: number, end: number) {
   <div class="grid">
     <section class="panel">
       <h3>账户概览</h3>
-      <div class="overview">
-        <button class="primary" @click="setTab('accounts')">+ 新建账户</button>
-        <button class="accent" @click="setTab('transactions')">✍️ 记一笔</button>
-      </div>
-
       <ul class="acc-list" v-if="state.accounts.length">
         <li v-for="a in state.accounts" :key="a.id">
           <span class="acc-name">{{ a.name }} ({{ a.currency }})</span>
-          <span class="acc-bal">{{ fmt(toBase(a.balance, a.currency)) }}</span>
+          <span class="acc-balance">{{ fmt(toBase(a.balance, a.currency)) }}</span>
         </li>
       </ul>
-      <p v-else class="muted">暂无账户，点击「新建账户」开始记账</p>
+      <p v-else class="muted">暂无账户，点击「新建账户」添加</p>
     </section>
 
     <section class="panel">
       <h3>资产结构</h3>
       <div class="structure" v-if="structure.length">
-        <svg width="180" height="180" viewBox="0 0 140 140">
+        <svg width="220" height="220" viewBox="0 0 140 140">
           <path v-for="s in structure" :key="s.label" :d="arc(s.start, s.end)" :fill="s.color" />
           <circle cx="70" cy="70" r="34" fill="var(--panel)" />
         </svg>
@@ -71,39 +69,50 @@ function arc(start: number, end: number) {
       <p v-else class="muted">暂无资产数据</p>
     </section>
   </div>
+
+  <div class="overview">
+    <button class="primary" @click="setTab('accounts')">+ 新建账户</button>
+    <button class="accent" @click="setTab('transactions')">✍️ 记一笔</button>
+  </div>
 </template>
 
 <style scoped>
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  /* 撑满下方空白：占满首屏剩余高度 */
-  min-height: calc(100vh - 220px);
-}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .panel {
   background: var(--panel); border: 1px solid var(--border);
-  border-radius: 16px; padding: 28px;
-  display: flex; flex-direction: column;
+  border-radius: 12px; padding: 18px;
 }
-h3 { margin: 0 0 20px; font-size: 20px; }
+h3 { margin: 0 0 14px; }
 
-/* 账户概览 */
-.overview { display: flex; gap: 12px; margin-bottom: 20px; }
-.primary { background: var(--accent); color: #fff; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 15px; }
-.accent { background: #16a34a; color: #fff; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 15px; }
-.acc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+/* 两张卡片下方、水平居中的操作按钮 */
+.overview {
+  display: flex; gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* 简明账户列表：*/
+.acc-list {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+}
 .acc-list li {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 18px; border-radius: 12px; background: var(--bg);
+  padding: 12px 14px; border-radius: 8px; background: var(--bg);
+  font-size: 15px;
 }
-.acc-name { font-size: 17px; }
-.acc-bal { font-size: 20px; font-weight: 700; }
+.acc-name { color: var(--text); }
+.acc-balance { font-weight: 600; }
+.acc-list::-webkit-scrollbar { width: 6px; }
+.acc-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-/* 资产结构 —— 保持原样式，仅随面板放大 */
-.structure { display: flex; align-items: center; gap: 28px; flex: 1; }
-.legend { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.legend li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
-.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.structure { display: flex; align-items: center; justify-content: space-around; gap: 40px; flex-direction: column}
+.legend { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .muted { color: var(--muted); }
+.primary { background: var(--accent); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+.accent { background: #16a34a; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
 </style>

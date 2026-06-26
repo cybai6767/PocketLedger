@@ -36,6 +36,7 @@ function cancel() {
     <div class="row">
       <h3>账户列表</h3>
     </div>
+    <div class="table-wrap">
     <table>
       <thead>
         <tr><th>名称</th><th>类型</th><th>币种</th><th>余额 (本币)</th><th>操作</th></tr>
@@ -53,6 +54,7 @@ function cancel() {
         </tr>
       </tbody>
     </table>
+    </div>
   </section>
 
   <section class="panel">
@@ -79,6 +81,16 @@ function cancel() {
 </template>
 
 <style scoped>
+.table-wrap {
+  max-height: 416px;
+  overflow-y: auto;
+}
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 1;
+}
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 h3 { margin: 0 0 14px; }
 table { width: 100%; border-collapse: collapse; }
