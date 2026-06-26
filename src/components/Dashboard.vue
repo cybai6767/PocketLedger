@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import { useStore } from '../composables/useStorage'
 import { ACCOUNT_TYPE_LABELS, CURRENCY_SYMBOLS } from '../types'
 
-const { state, setTab, toBase, removeAccount } = useStore()
+const { state, setTab, toBase } = useStore()
 
 const sym = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
-const fmt = (n: number) => state.settings.masked ? '****' : sym.value + n.toFixed(2)
+const fmt = (n: number) => state.settings.masked ? '****' : sym.value + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // 资产结构（按类型占比）
 const structure = computed(() => {
@@ -44,12 +44,20 @@ function arc(start: number, end: number) {
         <button class="primary" @click="setTab('accounts')">+ 新建账户</button>
         <button class="accent" @click="setTab('transactions')">✍️ 记一笔</button>
       </div>
+
+      <ul class="acc-list" v-if="state.accounts.length">
+        <li v-for="a in state.accounts" :key="a.id">
+          <span class="acc-name">{{ a.name }} ({{ a.currency }})</span>
+          <span class="acc-bal">{{ fmt(toBase(a.balance, a.currency)) }}</span>
+        </li>
+      </ul>
+      <p v-else class="muted">暂无账户，点击「新建账户」开始记账</p>
     </section>
 
     <section class="panel">
       <h3>资产结构</h3>
       <div class="structure" v-if="structure.length">
-        <svg width="140" height="140" viewBox="0 0 140 140">
+        <svg width="180" height="180" viewBox="0 0 140 140">
           <path v-for="s in structure" :key="s.label" :d="arc(s.start, s.end)" :fill="s.color" />
           <circle cx="70" cy="70" r="34" fill="var(--panel)" />
         </svg>
@@ -62,49 +70,40 @@ function arc(start: number, end: number) {
       </div>
       <p v-else class="muted">暂无资产数据</p>
     </section>
-
-    <section class="panel span2">
-      <div class="row">
-        <h3>账户列表</h3>
-      </div>
-      <table>
-        <thead>
-          <tr><th>名称</th><th>类型</th><th>币种</th><th>余额 (本币)</th><th>操作</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="a in state.accounts" :key="a.id">
-            <td>{{ a.name }}</td>
-            <td>{{ ACCOUNT_TYPE_LABELS[a.type] }}</td>
-            <td>{{ a.currency }}</td>
-            <td>{{ fmt(toBase(a.balance, a.currency)) }}</td>
-            <td>
-              <button class="link" @click="removeAccount(a.id)">删除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
   </div>
 </template>
 
 <style scoped>
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  /* 撑满下方空白：占满首屏剩余高度 */
+  min-height: calc(100vh - 220px);
+}
 .panel {
   background: var(--panel); border: 1px solid var(--border);
-  border-radius: 12px; padding: 18px;
+  border-radius: 16px; padding: 28px;
+  display: flex; flex-direction: column;
 }
-.span2 { grid-column: 1 / -1; }
-h3 { margin: 0 0 14px; }
-.overview { display: flex; gap: 12px; }
-.structure { display: flex; align-items: center; gap: 20px; }
-.legend { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; }
-.link { background: none; border: none; color: #dc2626; cursor: pointer; }
+h3 { margin: 0 0 20px; font-size: 20px; }
+
+/* 账户概览 */
+.overview { display: flex; gap: 12px; margin-bottom: 20px; }
+.primary { background: var(--accent); color: #fff; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.accent { background: #16a34a; color: #fff; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.acc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.acc-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 18px; border-radius: 12px; background: var(--bg);
+}
+.acc-name { font-size: 17px; }
+.acc-bal { font-size: 20px; font-weight: 700; }
+
+/* 资产结构 —— 保持原样式，仅随面板放大 */
+.structure { display: flex; align-items: center; gap: 28px; flex: 1; }
+.legend { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.legend li { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .muted { color: var(--muted); }
-.row { display: flex; justify-content: space-between; align-items: center; }
-.primary { background: var(--accent); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
-.accent { background: #16a34a; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
 </style>

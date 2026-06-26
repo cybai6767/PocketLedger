@@ -24,12 +24,6 @@ export interface Transaction {
   note?: string
 }
 
-export interface Budget {
-  id: string
-  category: string
-  amount: number       // 基准货币
-}
-
 export interface Settings {
   baseCurrency: Currency
   masked: boolean
@@ -39,7 +33,6 @@ export interface Settings {
 export interface AppData {
   accounts: Account[]
   transactions: Transaction[]
-  budgets: Budget[]
   settings: Settings
 }
 

@@ -1,8 +1,8 @@
-vue复制<script setup lang="ts">import { computed, watchEffect } from 'vue'
+<script setup lang="ts">
+import { computed, watchEffect } from 'vue'
 import Dashboard from './components/Dashboard.vue'
 import Accounts from './components/Accounts.vue'
 import Transactions from './components/Transactions.vue'
-import Budget from './components/Budget.vue'
 import Reports from './components/Reports.vue'
 import Settings from './components/Settings.vue'
 import { useStore } from './composables/useStorage'
@@ -15,7 +15,6 @@ const tabs = [
   { key: 'dashboard', label: '仪表盘', comp: Dashboard },
   { key: 'accounts', label: '账户', comp: Accounts },
   { key: 'transactions', label: '交易', comp: Transactions },
-  { key: 'budget', label: '预算', comp: Budget },
   { key: 'reports', label: '报表', comp: Reports },
   { key: 'settings', label: '设置', comp: Settings },
 ] as const

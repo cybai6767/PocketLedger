@@ -1,6 +1,6 @@
 import { reactive, watch, computed,ref } from 'vue'
 import type {
-  AppData, Account, Transaction, Budget, Currency,
+  AppData, Account, Transaction, Currency,
 } from '../types'
 
 // 跳转
@@ -27,7 +27,6 @@ function defaultData(): AppData {
       { id: uid(), name: '银行卡', type: 'bank', currency: 'CNY', balance: 0 },
     ],
     transactions: [],
-    budgets: [],
     settings: { baseCurrency: 'CNY', masked: false, theme: 'light' },
   }
 }
@@ -103,13 +102,6 @@ export function useStore() {
     state.transactions = state.transactions.filter(t => t.id !== id)
   }
 
-  function addBudget(b: Omit<Budget, 'id'>) {
-    state.budgets.push({ ...b, id: uid() })
-  }
-  function removeBudget(id: string) {
-    state.budgets = state.budgets.filter(b => b.id !== id)
-  }
-
   function clearAll() {
     Object.assign(state, defaultData())
   }
@@ -129,7 +121,6 @@ export function useStore() {
     toBase,
     addAccount, updateAccount, removeAccount,
     addTransaction, removeTransaction,
-    addBudget, removeBudget,
     clearAll, toggleTheme,
   }
 }
