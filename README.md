@@ -3,7 +3,7 @@ accounting-tool | 个人财务管理系统
 
 
 
-中文 | English
+中文
 
 项目简介
 accounting-tool 是一个基于现代技术栈（Spring Boot 3 + Vue 3）开发的个人财务记账与资产管理系统。该项目旨在帮助个人用户实现资产的统一管理，涵盖现金、银行卡、投资账户、债务等多维度数据。
@@ -34,24 +34,6 @@ accounting-tool 是一个基于现代技术栈（Spring Boot 3 + Vue 3）开发�
 UI 组件库：Element Plus
 图表库：ECharts / AntV
 
-
-Introduction
-accounting-tool is a comprehensive personal finance and asset management system built with a modern tech stack (Spring Boot 3 + Vue 3). It helps users manage various assets including cash, bank cards, investments, and debts in one centralized platform.
-Key Features
-
-Multi-Account Management: Manage cash, credit cards, investment accounts, and digital wallets.
-Transaction Tracking: Support for categorized logging and multi-dimensional data filtering.
-Budget & Alerts: Set monthly/yearly budgets with automated bill reminders.
-Data Visualization: Built-in analytics for income/expense trends and asset distribution.
-Security: Robust permission control via JWT and detailed operation logging.
-Deployment: Ready for Docker containerization.
-
-Tech Stack
-
-Backend: Spring Boot, MyBatis-Plus, MySQL, JWT, Redis.
-Frontend: Vue 3, Vite, Pinia, Element Plus, TypeScript.
-
-
 快速开始 | Quick Start
 1. 环境准备 (Prerequisites)
 
@@ -61,7 +43,7 @@ MySQL 8.0+
 Maven 3.8+
 
 2. 后端配置 (Backend Setup)
-sh复制# 1. 克隆项目git clone https://github.com/your-username/accounting-tool.git
+sh复制# 1. 克隆项目git clone https://github.com/bcielai321/accounting-tool.git
 # 2. 修改 application.yml 中的数据库连接配置# 3. 运行项目mvn clean installjava -jar target/accounting-tool.jar
 
 3. 前端配置 (Frontend Setup)
