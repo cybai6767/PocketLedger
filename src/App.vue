@@ -76,7 +76,11 @@ watchEffect(() => {
 </template>
 
 <style scoped>
-.app { display: flex; min-height: 100vh; }
+.app {
+    display: flex;
+    height: 100vh; 
+    overflow: hidden;
+}
 .sidebar {
   width: 200px; padding: 20px 14px; flex-shrink: 0;
   background: var(--panel); border-right: 1px solid var(--border);
@@ -94,7 +98,11 @@ nav { display: flex; flex-direction: column; gap: 4px; }
 }
 .nav-item:hover { background: var(--hover); }
 .nav-item.active { background: var(--accent); color: #fff; }
-.main { flex: 1; padding: 20px 28px; }
+.main {
+    flex: 1;
+    padding: 20px 28px;
+    overflow-y: auto;
+   }
 .topbar { display: flex; justify-content: flex-end; margin-bottom: 18px; }
 .actions { display: flex; gap: 10px; }
 .ghost {
