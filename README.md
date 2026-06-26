@@ -1,125 +1,86 @@
-Markdown
-# Accounting Tool 💰
+accounting-tool | 个人财务管理系统
 
-🌍 *[English](#english-version) | [中文版](#中文版本)*
 
----
 
-<h2 id="中文版本">🇨🇳 中文版本</h2>
 
-### 📖 项目简介
-本项目是一个全栈开发的个人财务记账与资产管理系统。专为个人用户设计，旨在帮助用户摆脱糊涂账，实现对现金、银行卡、信用卡、投资账户、债务账户以及各类平台钱包的统一管理与精细化追踪。
+中文 | English
 
-### ✨ 功能特性
-* **🔐 账户与权限管理：** 支持用户注册、安全登录以及基础的权限控制机制。
-* **💼 全面资产管理：** 集中管理各类资产（现金、储蓄卡、信用卡、理财投资、负债等）。
-* **📝 交易流水记录：** 快速记录日常收支流水，支持自定义交易分类与备注。
-* **📊 统计与分析：** 提供多维度的收支统计图表与数据筛选功能，财务状况一目了然。
-* **⏰ 预算与提醒：** 支持设置月度/分类预算，并在超支或有待缴账单时进行提醒。
-* **📁 扩展功能：** 支持相关财务文件的上传与管理、系统关键操作日志记录。
-* **🐳 快速部署：** 完善的 Docker 支持，可快速实现容器化部署。
+项目简介
+accounting-tool 是一个基于现代技术栈（Spring Boot 3 + Vue 3）开发的个人财务记账与资产管理系统。该项目旨在帮助个人用户实现资产的统一管理，涵盖现金、银行卡、投资账户、债务等多维度数据。
+它不仅是一个实用的记账工具，也是初学者学习全栈开发（前后端分离、权限控制、Docker 部署）的理想参考项目。
+核心功能
 
-### 🛠️ 技术栈
-* **前端 (Frontend):** Vue 3, Vite, TypeScript
-* **后端 (Backend):** Spring Boot, MyBatis-Plus, Java
-* **数据库 (Database):** MySQL
+多账户资产管理：统一管理现金、信用卡、投资账户、平台钱包（支付宝/微信等）。
+收支流水记录：支持多维度筛选、分类记账，清晰掌握资金去向。
+预算与提醒：自定义月度/年度预算，支持账单到期自动提醒。
+可视化统计：内置图表分析收支趋势、资产占比。
+安全保障：基于 JWT 的权限控制，支持操作日志审计。
+便捷部署：支持 Docker 一键容器化部署。
 
-### 🚀 快速开始
+技术栈
+后端 (Backend)
 
-#### 环境要求
-* Node.js 16+
-* JDK 1.8 或 11+
-* MySQL 8.0+
+核心框架：Spring Boot 3.x
+持久层：MyBatis-Plus (简化 CRUD 操作)
+数据库：MySQL 8.0
+权限校验：Spring Security + JWT
+工具类：Lombok, Hutool
 
-#### 1. 克隆项目
-```sh
-git clone [https://github.com/your-username/accounting-tool.git](https://github.com/your-username/accounting-tool.git)
-2. 后端配置
-在 MySQL 中创建名为 accounting 的数据库。
+前端 (Frontend)
 
-导入后端目录下的 schema.sql (如有) 初始化表结构。
+框架：Vue 3 (Composition API)
+构建工具：Vite
+状态管理：Pinia
+UI 组件库：Element Plus
+图表库：ECharts / AntV
 
-修改 application.yml 中的数据库连接信息（用户名、密码）。
 
-运行 Spring Boot 主启动类。
+Introduction
+accounting-tool is a comprehensive personal finance and asset management system built with a modern tech stack (Spring Boot 3 + Vue 3). It helps users manage various assets including cash, bank cards, investments, and debts in one centralized platform.
+Key Features
 
-3. 前端配置与运行
-进入前端项目目录：
+Multi-Account Management: Manage cash, credit cards, investment accounts, and digital wallets.
+Transaction Tracking: Support for categorized logging and multi-dimensional data filtering.
+Budget & Alerts: Set monthly/yearly budgets with automated bill reminders.
+Data Visualization: Built-in analytics for income/expense trends and asset distribution.
+Security: Robust permission control via JWT and detailed operation logging.
+Deployment: Ready for Docker containerization.
 
-Bash
-# 安装依赖
-npm install
+Tech Stack
 
-# 启动开发服务器 (支持热更新)
-npm run dev
+Backend: Spring Boot, MyBatis-Plus, MySQL, JWT, Redis.
+Frontend: Vue 3, Vite, Pinia, Element Plus, TypeScript.
 
-# 生产环境编译打包
-npm run build
 
-# 代码格式化与检查
-npm run lint
+快速开始 | Quick Start
+1. 环境准备 (Prerequisites)
 
-📖 Introduction
-Accounting Tool is a full-stack personal finance and asset management system. Designed specifically for individual users, it helps you keep track of your money and centrally manage your cash, bank cards, credit cards, investment accounts, debts, and various digital wallets.
-
-✨ Features
-🔐 User System: Secure user registration, login, and Role-Based Access Control (RBAC).
-
-💼 Asset Management: Unified dashboard for diverse assets (Cash, Debit/Credit Cards, Investments, Debts).
-
-📝 Transaction Tracking: Easily record daily income and expenses with customizable categories.
-
-📊 Data Analytics: Visualized charts and multi-dimensional data filtering for clear financial insights.
-
-⏰ Budgets & Alerts: Set monthly or category-specific budgets, and receive notifications for overspending or upcoming bills.
-
-📁 Advanced Tools: Supports financial document uploads, system operation logs, and secure data storage.
-
-🐳 Deployment: Docker-ready for quick and isolated container deployment.
-
-🛠️ Tech Stack
-Frontend: Vue 3, Vite, TypeScript
-
-Backend: Spring Boot, MyBatis-Plus, Java
-
-Database: MySQL
-
-🚀 Quick Start
-Prerequisites
-Node.js 16+
-
-JDK 1.8 or 11+
-
+JDK 17+
+Node.js 18+
 MySQL 8.0+
+Maven 3.8+
 
-1. Clone the repository
-Bash
-git clone [https://github.com/your-username/accounting-tool.git](https://github.com/your-username/accounting-tool.git)
-2. Backend Setup
-Create a database named accounting in MySQL.
+2. 后端配置 (Backend Setup)
+sh复制# 1. 克隆项目git clone https://github.com/your-username/accounting-tool.git
+# 2. 修改 application.yml 中的数据库连接配置# 3. 运行项目mvn clean installjava -jar target/accounting-tool.jar
 
-Execute the provided schema.sql (if any) to initialize the tables.
+3. 前端配置 (Frontend Setup)
+sh复制cd frontend
+# 安装依赖npm install
+# 启动开发服务器npm run dev
+# 构建生产环境npm run build
 
-Update the database credentials in the application.yml file.
+4. Docker 部署 (Docker Deployment)
+sh复制docker-compose up -d
 
-Run the Spring Boot application.
 
-3. Frontend Setup
-Navigate to the frontend directory:
-
-Bash
-# Install dependencies
-npm install
-
-# Compile and Hot-Reload for Development
-npm run dev
-
-# Type-Check, Compile and Minify for Production
-npm run build
-
-# Lint with ESLint
-npm run lint
-
-### 修改建议：
-1. **替换占位符**：把里面的 `https://github.com/your-username/accounting-tool.git` 换成你真实的 GitHub 或 Gitee 仓库地址。
-2. **Node.js 和 JDK 版本**：我在文档中写了常见的 Node 16+ 和 JDK 1.8/11+，你可以根据你实际开发使用的版本进行微调。
+项目结构 | Project Structure
+📝Write📋复制accounting-tool
+├── sql/                    # 数据库脚本
+├── backend/                # Spring Boot 后端源码
+│   ├── src/main/java       # 业务逻辑
+│   └── src/main/resources  # 配置文件
+└── frontend/               # Vue 3 前端源码
+    ├── src/api             # 接口请求
+    ├── src/views           # 页面组件
+    └── src/store           # 状态管理
