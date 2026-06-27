@@ -8,9 +8,35 @@ export type TabKey =  | 'dashboard' | 'accounts' | 'transactions' | 'budget' | '
 const activeTab = ref<TabKey>('dashboard')
 export function setTab(key: TabKey) {  activeTab.value = key}
 
+
+function addTransaction(t: Omit<Transaction, 'id'>) {
+  const newTx = { ...t, id: uid() }
+  state.transactions.unshift(newTx)
+  
+  // 自动更新账户余额
+  const acc = state.accounts.find(a => a.id === t.accountId)
+  if (acc) {
+    // 支出减余额，收入加余额
+    const change = t.type === 'income' ? t.amount : -t.amount
+    acc.balance += change
+  }
+}
+
+function removeTransaction(id: string) {
+  const idx = state.transactions.findIndex(t => t.id === id)
+  if (idx !== -1) {
+    const t = state.transactions[idx]!
+    // 冲销余额逻辑
+    const acc = state.accounts.find(a => a.id === t.accountId)
+    if (acc) {
+      acc.balance += (t.type === 'income' ? -t.amount : t.amount)
+    }
+    state.transactions.splice(idx, 1)
+  }
+}
+
 const STORAGE_KEY = 'my-ledger-data-v1'
 
-/** 折算汇率：1 单位货币 = ? 基准货币的中间表示，统一先折算到 CNY 再换算 */
 const RATES_TO_CNY: Record<Currency, number> = {
   CNY: 1,
   HKD: 0.92,

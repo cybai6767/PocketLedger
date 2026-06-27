@@ -1,3 +1,3 @@
-本项目是一个基于 Spring Boot + MyBatis-Plus + MySQL + Vue 的个人财务记账与资产管理系统，
+本项目是一个基于 Spring Boot + MyBatis-Plus + MySQL + Vue3+TypeScript 和 Vite 的个人财务记账与资产管理系统，
 支持用户注册登录、多账户管理、交易流水记录、账单提醒、收支统计、文件上传、数据筛选、权限控制、日志记录和 Docker 部署。
 系统面向个人用户，用于统一管理现金、银行卡、信用卡、投资账户、债务账户和平台钱包等资产数据。

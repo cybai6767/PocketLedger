@@ -12,7 +12,7 @@ const { state, activeTab, setTab, netWorth, monthIncome, monthExpense, toggleThe
  useStore()
 
 const tabs = [
-  { key: 'dashboard', label: '仪表盘', comp: Dashboard },
+  { key: 'dashboard', label: '首页', comp: Dashboard },
   { key: 'accounts', label: '账户', comp: Accounts },
   { key: 'transactions', label: '交易', comp: Transactions },
   { key: 'reports', label: '报表', comp: Reports },
