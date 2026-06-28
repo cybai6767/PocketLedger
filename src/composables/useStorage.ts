@@ -87,7 +87,8 @@ export function useStore() {
   const base = computed(() => state.settings.baseCurrency)
 
   const netWorth = computed(() =>
-    state.accounts.reduce((s, a) => s + toBase(a.balance, a.currency), 0))
+  state.accounts.reduce((sum, acc) => sum + toBase(acc.balance, acc.currency), 0)
+  )
 
   const thisMonth = () => {
     const now = new Date()

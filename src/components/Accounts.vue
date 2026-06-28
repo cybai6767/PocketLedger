@@ -17,7 +17,8 @@ function moveFocus(index: number) {
 const { state, toBase, addAccount, updateAccount, removeAccount } = useStore()
 const dragIndex = ref<number | null>(null)
 // 删除确认弹窗
-const showConfirm = ref(false)        // 是否显示弹窗
+const showConfirm = ref(false)
+const showAlert = ref(false)
 const pendingId = ref<string | null>(null) // 待删除账户 id
 const skipConfirm = ref(false)        // 本次打开不再提示（刷新后重置）
 const dontAskNext = ref(false)        // 弹窗内勾选框的临时绑定
@@ -27,6 +28,23 @@ const editingId = ref<string | null>(null)
 const formPanel = ref<HTMLElement | null>(null)
 const form = reactive({ name: '', type: 'cash' as AccountType, currency: 'CNY' as Currency, balance: 0 })
 
+function closeAlert() {
+  showAlert.value = false;
+}
+
+function handleSave() {
+    if (showAlert.value) {
+    closeAlert()
+    return
+  }
+  // 校验：名称不能为空
+  if (!form.name.trim()) {
+    showAlert.value = true;
+    return;
+  }
+  // 校验通过，执行原有的提交逻辑
+  submit(); 
+}
 function onDragStart(index: number) {
   dragIndex.value = index
 }
@@ -53,7 +71,7 @@ function handleOutsideClick(e: MouseEvent) {
   if (target.closest('.op-btn.edit')) return
   cancel()
 }
-
+4
 onMounted(() => document.addEventListener('click', handleOutsideClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 
@@ -140,7 +158,14 @@ function cancel() {
     <div class="form">
       <label>名称
         <input v-model="form.name" class="nav-input" 
-        @keydown.right="moveFocus(1)" />
+        @keydown.right="moveFocus(1)"
+        @keydown.enter="handleSave" />
+        <div v-if="showAlert" class="alert-mask" @click.self="closeAlert">
+            <div class="alert-box">
+              <p class="alert-text">请填写有效信息</p>
+              <button class="alert-btn" @click="closeAlert">知道了</button>
+            </div>
+        </div>
       </label>
       <label>类型
         <select v-model="form.type" class="nav-input" 
@@ -164,7 +189,7 @@ function cancel() {
       </label>
     </div>
     <div class="actions">
-      <button class="primary" @click="submit">保存账户</button>
+      <button class="primary" @click="handleSave">保存账户</button>
       <button class="ghost" @click="cancel">取消 / 清空</button>
     </div>
   </section>
@@ -263,6 +288,56 @@ function cancel() {
   margin-right: 8px;
   user-select: none;
 }
+/* 弹窗遮罩：点击空白处关闭的核心在于 @click.self */
+.alert-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+/* 弹窗主体 */
+.alert-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 30px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 内部元素水平居中 */
+  justify-content: center; /* 内部元素垂直居中 */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+/* 提示文字 */
+.alert-text {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 20px 0;
+  color: var(--text);
+}
+
+/* “知道了”按钮 */
+.alert-btn {
+  padding: 8px 24px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+.alert-btn:hover {
+  opacity: 0.9;
+}
+
 .drag-row { cursor: grab; transition: background 0.15s; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 h3 { margin: 0 0 14px; }
