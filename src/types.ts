@@ -6,7 +6,7 @@ export type Currency = 'CNY' | 'HKD' | 'USD' | 'EUR' | 'USDT' | 'BTC'
 export type TxType = 'income' | 'expense' | 'transfer'
 
 export interface Account {
-  id: string
+  id: number
   name: string
   type: AccountType
   currency: Currency
@@ -14,7 +14,7 @@ export interface Account {
 }
 
 export interface Transaction {
-  id: string
+  id: number
   date: string         // ISO yyyy-mm-dd
   type: TxType
   accountId: string

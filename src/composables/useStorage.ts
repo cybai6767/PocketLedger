@@ -1,39 +1,13 @@
-import { reactive, watch, computed,ref } from 'vue'
-import type {
-  AppData, Account, Transaction, Currency,
-} from '../types'
+import { reactive, computed, ref } from 'vue'
+import type { AppData, Account, Transaction, Currency,} from '../types'
+import axios from 'axios'
+
+const api = axios.create({ baseURL: 'http://localhost:8080/api' })
 
 // 跳转
 export type TabKey =  | 'dashboard' | 'accounts' | 'transactions' | 'budget' | 'reports' | 'settings'
 const activeTab = ref<TabKey>('dashboard')
 export function setTab(key: TabKey) {  activeTab.value = key}
-
-
-function addTransaction(t: Omit<Transaction, 'id'>) {
-  const newTx = { ...t, id: uid() }
-  state.transactions.unshift(newTx)
-  
-  // 自动更新账户余额
-  const acc = state.accounts.find(a => a.id === t.accountId)
-  if (acc) {
-    // 支出减余额，收入加余额
-    const change = t.type === 'income' ? t.amount : -t.amount
-    acc.balance += change
-  }
-}
-
-function removeTransaction(id: string) {
-  const idx = state.transactions.findIndex(t => t.id === id)
-  if (idx !== -1) {
-    const t = state.transactions[idx]!
-    // 冲销余额逻辑
-    const acc = state.accounts.find(a => a.id === t.accountId)
-    if (acc) {
-      acc.balance += (t.type === 'income' ? -t.amount : t.amount)
-    }
-    state.transactions.splice(idx, 1)
-  }
-}
 
 const STORAGE_KEY = 'my-ledger-data-v1'
 
@@ -48,34 +22,28 @@ const RATES_TO_CNY: Record<Currency, number> = {
 
 function defaultData(): AppData {
   return {
-    accounts: [
-      { id: uid(), name: '现金', type: 'cash', currency: 'CNY', balance: 0 },
-      { id: uid(), name: '银行卡', type: 'bank', currency: 'CNY', balance: 0 },
-    ],
+    accounts: [],
     transactions: [],
     settings: { baseCurrency: 'CNY', masked: false, theme: 'light' },
   }
 }
 
-export function uid(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+const saved = localStorage.getItem('accounting-data')
+
+const state = reactive<AppData>({
+  accounts: [],
+  transactions: [],
+  settings: { baseCurrency: 'CNY', masked: false, theme: 'light' as 'light' | 'dark' },
+})
+
+async function loadData() {
+  const [acc, tx] = await Promise.all([
+    api.get('/accounts'),
+    api.get('/transactions'),
+  ])
+  state.accounts = acc.data
+  state.transactions = tx.data
 }
-
-function load(): AppData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...defaultData(), ...JSON.parse(raw) }
-  } catch { /* ignore */ }
-  return defaultData()
-}
-
-// 单例响应式状态
-const state = reactive<AppData>(load())
-
-// 自动持久化
-watch(state, (val) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
-}, { deep: true })
 
 /** 把任意金额从某货币折算到当前基准货币 */
 export function toBase(amount: number, from: Currency): number {
@@ -105,29 +73,27 @@ export function useStore() {
       .filter(t => t.type === 'expense' && t.date.startsWith(thisMonth()))
       .reduce((s, t) => s + toBase(t.amount, t.currency), 0))
 
-  // ---- mutations ----
-  function addAccount(a: Omit<Account, 'id'>) {
-    state.accounts.push({ ...a, id: uid() })
-  }
-  function updateAccount(id: string, patch: Partial<Account>) {
+async function addAccount(a: Omit<Account, 'id'>) {
+  const res = await api.post('/accounts', a)
+  state.accounts.push(res.data)   // 用后端返回的（带 id 的）数据
+}
+  function updateAccount(id: number, patch: Partial<Account>) {
     const a = state.accounts.find(x => x.id === id)
     if (a) Object.assign(a, patch)
   }
-  function removeAccount(id: string) {
-    state.accounts = state.accounts.filter(a => a.id !== id)
-  }
+  async function removeAccount(id: number) {
+  await api.delete(`/accounts/${id}`)
+  state.accounts = state.accounts.filter(a => a.id !== id)
+}
 
-  function addTransaction(t: Omit<Transaction, 'id'>) {
-    state.transactions.push({ ...t, id: uid() })
-    const acc = state.accounts.find(a => a.id === t.accountId)
-    if (acc) {
-      acc.balance += t.type === 'income' ? t.amount
-        : t.type === 'expense' ? -t.amount : 0
-    }
-  }
-  function removeTransaction(id: string) {
-    state.transactions = state.transactions.filter(t => t.id !== id)
-  }
+  async function addTransaction(t: Omit<Transaction, 'id'>) {
+  const res = await api.post('/transactions', t)
+  state.transactions.unshift(res.data)
+}
+  async function removeTransaction(id: number) {
+  await api.delete(`/transactions/${id}`)
+  state.transactions = state.transactions.filter(t => t.id !== id)
+}
 
   function clearAll() {
     Object.assign(state, defaultData())
@@ -139,6 +105,7 @@ export function useStore() {
 
   return {
     state,
+    loadData,
     activeTab,
     setTab,
     base,

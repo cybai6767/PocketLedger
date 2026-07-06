@@ -7,9 +7,12 @@ import Reports from './components/Reports.vue'
 import Settings from './components/Settings.vue'
 import { useStore } from './composables/useStorage'
 import { CURRENCY_SYMBOLS } from './types'
+import { onMounted } from 'vue'
 
-const { state, activeTab, setTab, netWorth, monthIncome, monthExpense, toggleTheme } =
+const { state, loadData, activeTab, setTab, netWorth, monthIncome, monthExpense, toggleTheme } =
  useStore()
+
+onMounted(() => loadData())
 
 const tabs = [
   { key: 'dashboard', label: '首页', comp: Dashboard },
