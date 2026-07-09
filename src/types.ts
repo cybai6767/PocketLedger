@@ -15,9 +15,9 @@ export interface Account {
 
 export interface Transaction {
   id: number
-  date: string         // ISO yyyy-mm-dd
+  date: string
   type: TxType
-  accountId: string
+  accountId: number
   amount: number       // 原币金额
   currency: Currency
   category: string

@@ -9,7 +9,7 @@ const { state, addTransaction, removeTransaction } = useStore()
 const form = reactive({
   date: new Date().toISOString().split('T')[0],
   type: 'expense' as TxType,
-  accountId: state.accounts[0]?.id || '',
+  accountId: 0 as number,
   amount: 0,
   currency: 'CNY' as Currency,
   category: '餐饮',
@@ -33,7 +33,7 @@ function save() {
   // 确保交易币种与账户币种一致
   addTransaction({ 
     ...form, 
-    date: form.date!,        // 加一个 ! 告诉 TS 这里肯定有值
+    date: form.date!,
     currency: acc.currency 
   })
   
@@ -44,13 +44,13 @@ function save() {
 // 过滤后的流水列表
 const filteredList = computed(() => {
   return state.transactions.filter(t => {
-    const matchAcc = filterAcc.value === 'all' || t.accountId === filterAcc.value
+    const matchAcc = filterAcc.value === 'all' || String(t.accountId) === filterAcc.value
     const matchKey = t.category.includes(searchQuery.value) || (t.note || '').includes(searchQuery.value)
     return matchAcc && matchKey
   })
 })
 
-const getAccName = (id: string) => state.accounts.find(a => a.id === id)?.name || '未知账户'
+const getAccName = (id: number) => state.accounts.find(a => a.id === id)?.name || '未知账户'
 const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
 </script>
 
@@ -70,7 +70,7 @@ const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 
           </select>
         </label>
         <label>来源账户
-          <select v-model="form.accountId" class="nav-input" @keydown.left.prevent="moveFocus(1)" @keydown.right.prevent="moveFocus(3)">
+          <select v-model.number="form.accountId" class="nav-input" @keydown.left.prevent="moveFocus(1)" @keydown.right.prevent="moveFocus(3)">
             <option v-for="a in state.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </select>
         </label>
