@@ -14,7 +14,7 @@ export interface Account {
 }
 
 export interface Transaction {
-  id: number
+  id: string
   date: string
   type: TxType
   accountId: number

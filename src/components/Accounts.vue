@@ -19,12 +19,12 @@ const dragIndex = ref<number | null>(null)
 // 删除确认弹窗
 const showConfirm = ref(false)
 const showAlert = ref(false)
-const pendingId = ref<string | null>(null) // 待删除账户 id
+const pendingId = ref<number | null>(null) // 待删除账户 id
 const skipConfirm = ref(false)        // 本次打开不再提示（刷新后重置）
 const dontAskNext = ref(false)        // 弹窗内勾选框的临时绑定
 const sym = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
 const fmt = (n: number) => state.settings.masked ? '****' : sym.value + n.toFixed(2)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const formPanel = ref<HTMLElement | null>(null)
 const form = reactive({ name: '', type: 'cash' as AccountType, currency: 'CNY' as Currency, balance: 0 })
 
@@ -76,7 +76,7 @@ onMounted(() => document.addEventListener('click', handleOutsideClick))
 onBeforeUnmount(() => document.removeEventListener('click', handleOutsideClick))
 
 // 点击“删除”入口：决定是直接删还是弹窗
-function askRemove(id: string) {
+function askRemove(id: number) {
   if (skipConfirm.value) {
     removeAccount(id)
     return
@@ -97,7 +97,7 @@ function closeConfirm() {
   showConfirm.value = false
   pendingId.value = null
 }
-function startEdit(id: string) {
+function startEdit(id: number) {
   const a = state.accounts.find(x => x.id === id)!
   editingId.value = id
   Object.assign(form, { name: a.name, type: a.type, currency: a.currency, balance: a.balance })
