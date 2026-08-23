@@ -1,6 +1,6 @@
 # 我的记账本
 
-一个基于 **Nuxt 4 + Vue 3 + Nitro + SQLite** 的个人财务记账全栈应用。前端页面、服务端 API、数据校验和数据库都在同一个 TypeScript 仓库中，开发和部署只需要启动一个 Node.js 服务。
+一个基于 **Nuxt 4 + Vue 3 + Nitro + SQLite** 的个人财务记账全栈应用，同时提供 **Tauri 2** 桌面/Android 外壳。Web 版通过 Nitro API 读写服务端 SQLite，Tauri 版通过 Rust 命令读写设备本机 SQLite，可以完全离线使用。
 
 ## 已实现功能
 
@@ -12,6 +12,7 @@
 - 净资产、本月收支、12 个月趋势和本月支出分类报表
 - 金额遮罩、明暗主题和基准货币服务端持久化
 - SQLite 自动建表、参数校验、错误反馈和响应式界面
+- Tauri 桌面端与 Android ARM64 调试包，本机离线保存账本
 
 > 当前是单用户个人账本，不包含注册登录、文件上传、账单提醒或多人权限。旧 README 曾描述这些功能，但原代码并未实现，本次重构没有把未实现功能标为已完成。
 
@@ -28,11 +29,23 @@ SQLite（data/accounting.sqlite）
 ```
 
 ```text
+Tauri WebView（Vue 3 静态页面）
+      │ invoke 调用
+      ▼
+Rust 命令层
+      │ 校验 + 事务
+      ▼
+设备本机 SQLite（accounting.sqlite）
+```
+
+```text
 app/                    Vue 页面、组件和客户端状态
 server/api/             Nitro HTTP API
 server/utils/           SQLite 初始化、数据仓库和校验
 shared/types/           前后端共享 TypeScript 契约
 tests/                  数据层单元测试
+src-tauri/              Tauri 配置、Rust 命令、本机 SQLite 与 Android 工程
+scripts/                Manjaro/Arch 的无 rustup Android 构建辅助脚本
 nuxt.config.ts          Nuxt 与 Node Server 配置
 ```
 
@@ -69,6 +82,34 @@ NODE_ENV=production node .output/server/index.mjs
 ```
 
 默认监听 `0.0.0.0:3000`，可以通过 `HOST` 和 `PORT` 修改。
+
+## Tauri 桌面端
+
+先安装当前平台的 [Tauri 系统依赖](https://v2.tauri.app/start/prerequisites/)，然后运行：
+
+```bash
+npm run tauri -- dev
+```
+
+Tauri 构建使用 `NUXT_TAURI=true` 生成无 SSR 的静态页面，不会把 Nitro 服务端或 Web 数据库打进客户端。桌面端/Android 端的账本与服务器 Web 版相互独立。
+
+## Android 调试包（Manjaro/Arch，无 rustup）
+
+本仓库保留系统 `/usr/bin/rustc`，无需安装 rustup。准备 Android Studio/SDK/NDK、JDK 17 或 21，并安装与系统 Rust 同版本的标准库源码：
+
+```bash
+sudo pacman -S rust-src
+npm run tauri:android:init
+npm run tauri:android:build
+```
+
+辅助脚本会用系统 Rust 在 `src-tauri/target/` 内临时编译 `aarch64-linux-android` 标准库，并产出已用 Android debug key 签名的 ARM64 APK：
+
+```text
+src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+```
+
+这是供真机试装的调试包，不是应用商店发布包。正式发布仍需配置自己的 Android keystore、构建 release APK/AAB，并完成真机回归测试。
 
 ## Docker 部署
 

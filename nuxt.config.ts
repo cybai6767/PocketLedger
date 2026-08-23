@@ -1,7 +1,15 @@
+const isTauriBuild = process.env.NUXT_TAURI === 'true' || Boolean(process.env.TAURI_ENV_PLATFORM)
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-23',
-  devtools: { enabled: true },
+  ssr: !isTauriBuild,
+  devtools: { enabled: !isTauriBuild },
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    public: {
+      tauri: isTauriBuild,
+    },
+  },
   typescript: {
     // `npm run typecheck` is the CI gate. Keeping build transpilation-only also
     // avoids vue-tsc worker path parsing issues when this checkout path has spaces.
@@ -10,6 +18,14 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'node-server',
   },
+  vite: {
+    clearScreen: false,
+    envPrefix: ['VITE_', 'TAURI_'],
+    server: {
+      strictPort: true,
+    },
+  },
+  ignore: ['**/src-tauri/**'],
   app: {
     head: {
       htmlAttrs: { lang: 'zh-CN' },

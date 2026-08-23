@@ -12,6 +12,7 @@ export default defineConfigWithVueTs(
     '**/.output/**',
     '**/coverage/**',
     '**/node_modules/**',
+    '**/src-tauri/**',
   ]),
   ...pluginVue.configs['flat/essential'],
   vueTsConfigs.recommended,
