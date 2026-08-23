@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: account
+  datasource:
+    url: jdbc:mysql://localhost:3306/accounting?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8
+    username: root
+    password: 1234
+    driver-class-name: com.mysql.cj.jdbc.Driver
