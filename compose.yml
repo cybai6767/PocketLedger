@@ -1,0 +1,13 @@
+services:
+  ledger:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NUXT_DATABASE_PATH: /app/data/accounting.sqlite
+    volumes:
+      - ledger-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  ledger-data:
