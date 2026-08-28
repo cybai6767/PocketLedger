@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+: "${TAURI_ARCH_SYSROOT:?TAURI_ARCH_SYSROOT is required}"
+exec /usr/bin/rustc --sysroot "$TAURI_ARCH_SYSROOT" "$@"

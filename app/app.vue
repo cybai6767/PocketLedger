@@ -14,6 +14,7 @@ const {
   lastError,
   busy,
   hydrate,
+  loadSnapshot,
   setError,
   setTab,
   netWorth,
@@ -30,9 +31,11 @@ const tabs = [
   { key: 'settings', label: '设置', icon: '⚙', component: Settings },
 ] as const
 
-const { data, error, status, refresh } = await useFetch<LedgerSnapshot>('/api/ledger', {
-  key: 'ledger-snapshot',
-})
+const isTauri = Boolean(useRuntimeConfig().public.tauri)
+const initialRequest = isTauri
+  ? await useAsyncData<LedgerSnapshot>('ledger-snapshot', loadSnapshot, { server: false })
+  : await useFetch<LedgerSnapshot>('/api/ledger', { key: 'ledger-snapshot' })
+const { data, error, status, refresh } = initialRequest
 
 watch(data, snapshot => {
   if (snapshot) hydrate(snapshot)
@@ -71,7 +74,7 @@ async function retry() {
         <div class="brand">账</div>
         <div>
           <h1 class="title">我的记账本</h1>
-          <p class="subtitle">NUXT 全栈版</p>
+          <p class="subtitle">{{ isTauri ? 'TAURI 离线版' : 'NUXT 全栈版' }}</p>
         </div>
       </div>
 
@@ -89,7 +92,7 @@ async function retry() {
 
       <div class="server-badge">
         <span class="status-dot" />
-        服务端数据已启用
+        {{ isTauri ? '本机数据已启用' : '服务端数据已启用' }}
       </div>
     </aside>
 
@@ -147,7 +150,7 @@ async function retry() {
 </template>
 
 <style scoped>
-.app-shell { min-height: 100vh; display: flex; }
+.app-shell { min-height: 100vh; min-height: 100dvh; display: flex; }
 .sidebar {
   position: sticky; top: 0; width: 232px; height: 100vh; padding: 28px 18px 20px;
   flex-shrink: 0; display: flex; flex-direction: column;
@@ -208,12 +211,21 @@ nav { display: flex; flex-direction: column; gap: 6px; }
 .loading-state { min-height: 280px; display: grid; place-items: center; color: var(--muted); }
 @media (max-width: 860px) {
   .app-shell { display: block; }
-  .sidebar { position: static; width: 100%; height: auto; padding: 14px 18px; }
+  .sidebar {
+    position: static; width: 100%; height: auto;
+    padding: calc(14px + env(safe-area-inset-top))
+      calc(18px + env(safe-area-inset-right)) 14px
+      calc(18px + env(safe-area-inset-left));
+  }
   .brand-row { padding: 0 0 12px; }
   .sidebar nav { flex-direction: row; overflow-x: auto; }
   .nav-item { width: auto; flex: 0 0 auto; }
   .server-badge { display: none; }
-  .main { padding: 22px 18px 36px; }
+  .main {
+    padding: 22px calc(18px + env(safe-area-inset-right))
+      calc(36px + env(safe-area-inset-bottom))
+      calc(18px + env(safe-area-inset-left));
+  }
   .summary { grid-template-columns: 1fr; }
 }
 

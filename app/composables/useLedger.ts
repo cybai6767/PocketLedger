@@ -30,6 +30,7 @@ function emptySnapshot(): LedgerSnapshot {
 }
 
 function errorMessage(error: unknown): string {
+  if (typeof error === 'string') return error
   if (!error || typeof error !== 'object') return '操作失败，请稍后再试'
   const candidate = error as {
     data?: { message?: string, data?: { message?: string } }
@@ -44,6 +45,8 @@ function errorMessage(error: unknown): string {
 }
 
 export function useLedger() {
+  const config = useRuntimeConfig()
+  const isTauri = Boolean(config.public.tauri)
   const state = useState<LedgerSnapshot>('ledger', emptySnapshot)
   const activeTab = useState<TabKey>('active-tab', () => 'dashboard')
   const lastError = useState<string | null>('ledger-error', () => null)
@@ -77,6 +80,16 @@ export function useLedger() {
     }
   }
 
+  async function invokeMobile<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return invoke<T>(command, args)
+  }
+
+  async function loadSnapshot(): Promise<LedgerSnapshot> {
+    if (isTauri) return invokeMobile<LedgerSnapshot>('get_snapshot')
+    return $fetch<LedgerSnapshot>('/api/ledger')
+  }
+
   function setTab(key: TabKey) {
     activeTab.value = key
   }
@@ -105,20 +118,18 @@ export function useLedger() {
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
   async function addAccount(input: AccountInput): Promise<boolean> {
-    const account = await mutate(() => $fetch<Account>('/api/accounts', {
-      method: 'POST',
-      body: input,
-    }))
+    const account = await mutate(() => isTauri
+      ? invokeMobile<Account>('create_account', { input })
+      : $fetch<Account>('/api/accounts', { method: 'POST', body: input }))
     if (!account) return false
     state.value.accounts.push(account)
     return true
   }
 
   async function updateAccount(id: number, input: AccountInput): Promise<boolean> {
-    const account = await mutate(() => $fetch<Account>(`/api/accounts/${id}`, {
-      method: 'PUT',
-      body: input,
-    }))
+    const account = await mutate(() => isTauri
+      ? invokeMobile<Account>('update_account', { id, input })
+      : $fetch<Account>(`/api/accounts/${id}`, { method: 'PUT', body: input }))
     if (!account) return false
     const index = state.value.accounts.findIndex(item => item.id === id)
     if (index >= 0) state.value.accounts[index] = account
@@ -126,9 +137,9 @@ export function useLedger() {
   }
 
   async function removeAccount(id: number): Promise<boolean> {
-    const result = await mutate(() => $fetch<{ ok: boolean }>(`/api/accounts/${id}`, {
-      method: 'DELETE',
-    }))
+    const result = await mutate(() => isTauri
+      ? invokeMobile<{ ok: boolean }>('delete_account', { id })
+      : $fetch<{ ok: boolean }>(`/api/accounts/${id}`, { method: 'DELETE' }))
     if (!result) return false
     state.value.accounts = state.value.accounts.filter(account => account.id !== id)
     state.value.transactions = state.value.transactions.filter(transaction => transaction.accountId !== id)
@@ -136,20 +147,21 @@ export function useLedger() {
   }
 
   async function reorderAccounts(ids: number[]): Promise<boolean> {
-    const accounts = await mutate(() => $fetch<Account[]>('/api/accounts/reorder', {
-      method: 'PUT',
-      body: { ids },
-    }))
+    const accounts = await mutate(() => isTauri
+      ? invokeMobile<Account[]>('reorder_accounts', { ids })
+      : $fetch<Account[]>('/api/accounts/reorder', { method: 'PUT', body: { ids } }))
     if (!accounts) return false
     state.value.accounts = accounts
     return true
   }
 
   async function addTransaction(input: TransactionInput): Promise<boolean> {
-    const result = await mutate(() => $fetch<{ transaction: Transaction, account: Account }>(
-      '/api/transactions',
-      { method: 'POST', body: input },
-    ))
+    const result = await mutate(() => isTauri
+      ? invokeMobile<{ transaction: Transaction, account: Account }>('create_transaction', { input })
+      : $fetch<{ transaction: Transaction, account: Account }>(
+          '/api/transactions',
+          { method: 'POST', body: input },
+        ))
     if (!result) return false
     state.value.transactions.unshift(result.transaction)
     replaceAccount(result.account)
@@ -157,9 +169,9 @@ export function useLedger() {
   }
 
   async function removeTransaction(id: number): Promise<boolean> {
-    const result = await mutate(() => $fetch<{ account: Account }>(`/api/transactions/${id}`, {
-      method: 'DELETE',
-    }))
+    const result = await mutate(() => isTauri
+      ? invokeMobile<{ account: Account }>('delete_transaction', { id })
+      : $fetch<{ account: Account }>(`/api/transactions/${id}`, { method: 'DELETE' }))
     if (!result) return false
     state.value.transactions = state.value.transactions.filter(transaction => transaction.id !== id)
     replaceAccount(result.account)
@@ -175,10 +187,9 @@ export function useLedger() {
     const previous = { ...state.value.settings }
     const next = { ...previous, ...patch }
     state.value.settings = next
-    const settings = await mutate(() => $fetch<Settings>('/api/settings', {
-      method: 'PUT',
-      body: next,
-    }))
+    const settings = await mutate(() => isTauri
+      ? invokeMobile<Settings>('update_settings', { settings: next })
+      : $fetch<Settings>('/api/settings', { method: 'PUT', body: next }))
     if (!settings) {
       state.value.settings = previous
       return false
@@ -188,9 +199,9 @@ export function useLedger() {
   }
 
   async function clearAll(): Promise<boolean> {
-    const snapshot = await mutate(() => $fetch<LedgerSnapshot>('/api/ledger', {
-      method: 'DELETE',
-    }))
+    const snapshot = await mutate(() => isTauri
+      ? invokeMobile<LedgerSnapshot>('clear_ledger')
+      : $fetch<LedgerSnapshot>('/api/ledger', { method: 'DELETE' }))
     if (!snapshot) return false
     hydrate(snapshot)
     return true
@@ -211,6 +222,7 @@ export function useLedger() {
     monthIncome,
     monthExpense,
     hydrate,
+    loadSnapshot,
     setError,
     setTab,
     toBase,
