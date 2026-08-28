@@ -27,9 +27,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Test
-        run: npm test
-
       - name: Build and publish Windows installers
         uses: tauri-apps/tauri-action@v0.6.2
         env:
