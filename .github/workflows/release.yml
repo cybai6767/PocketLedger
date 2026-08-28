@@ -1,0 +1,48 @@
+name: Publish Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build and publish Windows installers
+        uses: tauri-apps/tauri-action@v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "我的记账本 ${{ github.ref_name }}"
+          releaseBody: |
+            Windows 桌面版首次发布。
+
+            下载 `.exe`（推荐）或 `.msi` 安装包即可安装。
+            此版本尚未进行商业代码签名，Windows 可能显示安全提示。
+          releaseDraft: false
+          prerelease: false
+          generateReleaseNotes: true
+          args: --bundles nsis,msi
