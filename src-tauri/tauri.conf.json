@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "我的记账本",
+  "productName": "Accounting Tool",
   "version": "1.0.1",
   "identifier": "com.axiaobo.accountingtool",
   "build": {
