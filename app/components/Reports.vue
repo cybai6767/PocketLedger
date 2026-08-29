@@ -139,7 +139,7 @@ function linePath(values: number[]) {
 </template>
 
 <style scoped>
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.panel { width: 100%; min-width: 0; overflow: hidden; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 h3 { margin: 0 0 14px; }
 .chart { width: 100%; height: 200px; }
 .legend { display: flex; gap: 18px; font-size: 13px; margin-top: 8px; }
@@ -167,6 +167,12 @@ h3 { margin: 0 0 14px; }
   justify-content: center;
   color: var(--muted);
   margin: 0;
+}
+
+@media (max-width: 640px) {
+  .panel { padding: 16px; }
+  .chart { height: 200px; }
+  .bar-row { align-items: flex-start; flex-direction: column; gap: 3px; }
 }
 
 </style>

@@ -223,7 +223,9 @@ function cancel() {
 <style scoped>
 .table-wrap {
   max-height: 400px;
-  overflow-y: auto;
+  max-width: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .table-wrap thead th {
   position: sticky;
@@ -351,14 +353,25 @@ function cancel() {
 }
 
 .drag-row { cursor: grab; transition: background 0.15s; }
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.panel { width: 100%; min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 h3 { margin: 0 0 14px; }
-table { width: 100%; border-collapse: collapse; }
+table { width: 100%; min-width: 620px; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .form { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
-input, select { padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
-.actions { display: flex; gap: 10px; }
+label { min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+input, select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .primary { background: var(--accent); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
 .ghost { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+
+@media (max-width: 860px) {
+  .form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .panel { padding: 16px; }
+  .form { grid-template-columns: minmax(0, 1fr); }
+  .modal { width: calc(100% - 32px); min-width: 0; padding: 24px 20px; }
+  .alert-box { width: calc(100% - 32px); min-width: 0; }
+}
 </style>

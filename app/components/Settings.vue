@@ -92,5 +92,9 @@ button:disabled, select:disabled { opacity: .55; cursor: wait; }
 
 @media (max-width: 620px) {
   .section-heading, .panel.danger, .field { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .field, .field > div, select { width: 100%; min-width: 0; }
+  .seg { width: 100%; }
+  .seg button { flex: 1; }
+  .danger-btn { width: 100%; }
 }
 </style>

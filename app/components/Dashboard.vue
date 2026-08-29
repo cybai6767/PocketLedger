@@ -118,4 +118,12 @@ h3 { margin: 0 0 14px; }
 .muted { color: var(--muted); }
 .primary { background: var(--accent); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
 .accent { background: #16a34a; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; }
+
+@media (max-width: 700px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .panel { min-width: 0; }
+  .structure svg { width: min(220px, 100%); height: auto; }
+  .acc-name, .acc-balance { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .overview { flex-wrap: wrap; }
+}
 </style>

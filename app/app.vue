@@ -150,7 +150,7 @@ async function retry() {
 </template>
 
 <style scoped>
-.app-shell { min-height: 100vh; min-height: 100dvh; display: flex; }
+.app-shell { width: 100%; min-width: 0; min-height: 100vh; min-height: 100dvh; display: flex; overflow-x: clip; }
 .sidebar {
   position: sticky; top: 0; width: 232px; height: 100vh; padding: 28px 18px 20px;
   flex-shrink: 0; display: flex; flex-direction: column;
@@ -222,6 +222,7 @@ nav { display: flex; flex-direction: column; gap: 6px; }
   .nav-item { width: auto; flex: 0 0 auto; }
   .server-badge { display: none; }
   .main {
+    width: 100%;
     padding: 22px calc(18px + env(safe-area-inset-right))
       calc(36px + env(safe-area-inset-bottom))
       calc(18px + env(safe-area-inset-left));
@@ -229,9 +230,22 @@ nav { display: flex; flex-direction: column; gap: 6px; }
   .summary { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 640px) {
+  .sidebar {
+    padding-right: calc(14px + env(safe-area-inset-right));
+    padding-left: calc(14px + env(safe-area-inset-left));
+  }
+  .sidebar nav { justify-content: space-between; gap: 2px; scrollbar-width: none; }
+  .sidebar nav::-webkit-scrollbar { display: none; }
+  .nav-item { justify-content: center; min-width: 0; padding: 10px 11px; }
   .nav-icon, .icon-button span { display: none; }
+  .main {
+    padding-top: 18px;
+    padding-right: calc(14px + env(safe-area-inset-right));
+    padding-left: calc(14px + env(safe-area-inset-left));
+  }
   .topbar { margin-bottom: 18px; }
+  .topbar h2 { font-size: 23px; }
   .summary-card { min-height: 86px; }
 }
 </style>

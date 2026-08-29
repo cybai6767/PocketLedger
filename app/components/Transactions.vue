@@ -135,22 +135,35 @@ const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 
 </template>
 
 <style scoped>
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+.panel { width: 100%; min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 14px; }
-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
-input, select { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; }
+label { min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+input, select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; }
 .save-btn { padding: 10px 24px; }
 
 .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
 .filters { display: flex; gap: 10px; }
 .search-box { width: 180px; }
 
-.table-wrap { max-height: 400px; overflow-y: auto; }
-table { width: 100%; border-collapse: collapse; }
+.table-wrap { max-width: 100%; max-height: 400px; overflow: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; min-width: 620px; border-collapse: collapse; }
 th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--border); }
 .income { color: #16a34a; font-weight: 600; }
 .expense { color: #dc2626; font-weight: 600; }
-.empty { text-align: center; padding: 40px; color: var(--muted); }
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
 .link-danger { background: none; border: 1px solid #dc2626; color: #dc2626; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
 .primary { background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+
+@media (max-width: 860px) {
+  .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .panel { padding: 16px; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .list-header { align-items: stretch; flex-direction: column; gap: 12px; }
+  .filters { width: 100%; flex-wrap: wrap; }
+  .filters select { width: auto; flex: 1 1 110px; }
+  .search-box { width: auto; flex: 2 1 150px; }
+}
 </style>

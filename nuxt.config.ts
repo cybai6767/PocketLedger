@@ -32,7 +32,7 @@ export default defineNuxtConfig({
       title: '我的记账本',
       meta: [
         { name: 'description', content: '基于 Nuxt 的个人财务记账与资产管理工具' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
       ],
     },
   },
