@@ -10,6 +10,7 @@
     "generate:tauri": "cross-env NUXT_TAURI=true nuxt generate",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
+    "postinstall": "nuxt prepare",
     "tauri": "tauri",
     "tauri:android:init": "tauri android init --ci --skip-targets-install",
     "tauri:android:build": "bash scripts/tauri-android-arch.sh",
