@@ -11,8 +11,11 @@
 - 新增/删除流水时自动更新或还原账户余额
 - 净资产、本月收支、12 个月趋势和本月支出分类报表
 - 金额遮罩、明暗主题和基准货币服务端持久化
+- CSV/Excel 完整数据导出，包含账户、流水、设置和备份版本信息
+- SQLite schema 版本管理与启动时自动迁移
 - SQLite 自动建表、参数校验、错误反馈和响应式界面
 - Tauri 桌面端与 Android ARM64 调试包，本机离线保存账本
+- Tauri 桌面端与 Android 使用 CSP 限制外部脚本、网络连接、嵌入页面和插件对象
 
 > 当前是单用户个人账本，不包含注册登录、文件上传、账单提醒或多人权限。旧 README 曾描述这些功能，但原代码并未实现，本次重构没有把未实现功能标为已完成。
 
@@ -69,11 +72,16 @@ NUXT_DATABASE_PATH=/absolute/path/accounting.sqlite npm run dev
 ## 质量检查
 
 ```bash
-npm test
+npm run test:all
 npm run typecheck
 npm run lint
 npm run build
 ```
+
+`test:all` 会同时运行 TypeScript 与 Rust 测试。两套后端共用
+`tests/fixtures/backend-consistency.json`，对同一组账户、流水、设置和数据库版本场景执行操作，并核对完全相同的最终账本快照。
+
+推送到 `main` 时，GitHub Actions 会自动执行上述测试、类型检查和代码检查。推送 `v*` 标签时，发布工作流会分别构建 Windows NSIS 安装包和使用项目 release keystore 签名的 Android ARM64 APK，验证签名后再创建 GitHub Release。
 
 生产构建完成后：
 
@@ -134,6 +142,10 @@ docker compose up --build -d
 
 ## 数据与迁移说明
 
+- 在“设置 → 数据导出与备份”中可以导出 `.xlsx` 或 `.csv` 文件。Excel 文件按“说明、账户、流水、设置”分表保存；CSV 使用“记录类型”列保存完整账本。
+- 备份包含未遮罩的真实金额，应保存到可信位置。目前提供导出，不提供界面内一键恢复；恢复功能可在后续版本基于备份格式版本继续实现。
+- Web 与 Tauri SQLite 都使用 `PRAGMA user_version` 记录 schema 版本。应用启动时按顺序执行缺失迁移，每一步使用事务，失败会回滚；如果数据库版本高于程序支持版本，程序会拒绝打开，避免旧程序破坏新数据。
+- 当前 schema 版本为 `1`，备份格式版本为 `1`。后续修改表结构时必须新增迁移步骤，不能直接改写已有迁移。
 - 原 Spring Boot/MyBatis-Plus 后端已移除，Git 历史仍可查看旧实现。
 - 仓库中没有旧 MySQL 的表结构或数据文件，因此不会自动迁移现有 MySQL 数据。如果已有实际数据，应先保留数据库，再单独编写一次性导入脚本。
 - 当前汇率是前端内置的固定演示值，不是实时牌价。涉及真实财务决策前，应接入可信汇率源并记录汇率日期。

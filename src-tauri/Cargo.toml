@@ -1,6 +1,6 @@
 [package]
 name = "accounting-tool"
-version = "1.0.1"
+version = "1.0.2"
 description = "A local-first personal accounting application"
 authors = ["Axiaobo"]
 license = "MIT"
@@ -23,5 +23,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 rust_decimal = "1.42.1"

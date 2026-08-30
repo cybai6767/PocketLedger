@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import Database from 'better-sqlite3'
+import { LEDGER_SCHEMA_VERSION } from '../../shared/types/ledger'
 
 export type LedgerDatabase = Database.Database
 
@@ -45,14 +46,57 @@ const schema = `
   VALUES (1, 'CNY', 0, 'light');
 `
 
+interface Migration {
+  version: number
+  sql: string
+}
+
+const migrations: Migration[] = [
+  { version: 1, sql: schema },
+]
+
+export function getLedgerSchemaVersion(database: LedgerDatabase): number {
+  return database.pragma('user_version', { simple: true }) as number
+}
+
+export function migrateLedgerDatabase(database: LedgerDatabase): void {
+  const currentVersion = getLedgerSchemaVersion(database)
+  if (currentVersion > LEDGER_SCHEMA_VERSION) {
+    throw new Error(
+      `数据库版本 ${currentVersion} 高于当前程序支持的版本 ${LEDGER_SCHEMA_VERSION}，请升级应用后再试`,
+    )
+  }
+
+  for (const migration of migrations) {
+    if (migration.version <= currentVersion) continue
+
+    database.exec('BEGIN IMMEDIATE')
+    try {
+      database.exec(migration.sql)
+      database.pragma(`user_version = ${migration.version}`)
+      database.exec('COMMIT')
+    }
+    catch (error) {
+      if (database.inTransaction) database.exec('ROLLBACK')
+      throw error
+    }
+  }
+}
+
 export function openLedgerDatabase(filename: string): LedgerDatabase {
   if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true })
 
   const database = new Database(filename)
-  database.pragma('journal_mode = WAL')
-  database.pragma('foreign_keys = ON')
-  database.exec(schema)
-  return database
+  try {
+    database.pragma('journal_mode = WAL')
+    database.pragma('foreign_keys = ON')
+    migrateLedgerDatabase(database)
+    return database
+  }
+  catch (error) {
+    database.close()
+    throw error
+  }
 }
 
 const globalDatabase = globalThis as typeof globalThis & {

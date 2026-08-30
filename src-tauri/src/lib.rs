@@ -6,6 +6,8 @@ use std::str::FromStr;
 use std::sync::Mutex;
 use tauri::{Manager, State};
 
+const CURRENT_SCHEMA_VERSION: i64 = 1;
+
 const SCHEMA: &str = r#"
   PRAGMA foreign_keys = ON;
 
@@ -147,6 +149,35 @@ type RawTransaction = (
 
 fn database_error(error: rusqlite::Error) -> String {
     format!("数据库操作失败：{error}")
+}
+
+fn schema_version(database: &Connection) -> Result<i64, String> {
+    database
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(database_error)
+}
+
+fn migrate_database(database: &mut Connection) -> Result<(), String> {
+    let current_version = schema_version(database)?;
+    if current_version > CURRENT_SCHEMA_VERSION {
+        return Err(format!(
+            "数据库版本 {current_version} 高于当前程序支持的版本 {CURRENT_SCHEMA_VERSION}，请升级应用后再试"
+        ));
+    }
+
+    for next_version in (current_version + 1)..=CURRENT_SCHEMA_VERSION {
+        let transaction = database.transaction().map_err(database_error)?;
+        match next_version {
+            1 => transaction.execute_batch(SCHEMA).map_err(database_error)?,
+            _ => return Err(format!("缺少数据库版本 {next_version} 的迁移脚本")),
+        }
+        transaction
+            .pragma_update(None, "user_version", next_version)
+            .map_err(database_error)?;
+        transaction.commit().map_err(database_error)?;
+    }
+
+    Ok(())
 }
 
 fn decimal_from_number(value: f64, field: &str) -> Result<Decimal, String> {
@@ -417,16 +448,8 @@ fn lock_database<'a>(
         .map_err(|_| "无法访问本机数据库".to_string())
 }
 
-#[tauri::command]
-fn get_snapshot(state: State<'_, AppState>) -> Result<LedgerSnapshot, String> {
-    let database = lock_database(&state)?;
-    snapshot(&database)
-}
-
-#[tauri::command]
-fn create_account(input: AccountInput, state: State<'_, AppState>) -> Result<Account, String> {
-    validate_account(&input)?;
-    let database = lock_database(&state)?;
+fn create_account_record(database: &Connection, input: &AccountInput) -> Result<Account, String> {
+    validate_account(input)?;
     let next_order: i64 = database
         .query_row(
             "SELECT COALESCE(MAX(sort_order), -1) + 1 FROM accounts",
@@ -447,20 +470,18 @@ fn create_account(input: AccountInput, state: State<'_, AppState>) -> Result<Acc
             ],
         )
         .map_err(database_error)?;
-    get_account(&database, database.last_insert_rowid())
+    get_account(database, database.last_insert_rowid())
 }
 
-#[tauri::command]
-fn update_account(
+fn update_account_record(
+    database: &Connection,
     id: i64,
-    input: AccountInput,
-    state: State<'_, AppState>,
+    input: &AccountInput,
 ) -> Result<Account, String> {
     if id <= 0 {
         return Err("ID 无效".to_string());
     }
-    validate_account(&input)?;
-    let database = lock_database(&state)?;
+    validate_account(input)?;
     let changes = database
         .execute(
             "UPDATE accounts
@@ -479,32 +500,15 @@ fn update_account(
     if changes == 0 {
         return Err("账户不存在".to_string());
     }
-    get_account(&database, id)
+    get_account(database, id)
 }
 
-#[tauri::command]
-fn delete_account(id: i64, state: State<'_, AppState>) -> Result<OkResponse, String> {
-    if id <= 0 {
-        return Err("ID 无效".to_string());
-    }
-    let database = lock_database(&state)?;
-    let changes = database
-        .execute("DELETE FROM accounts WHERE id = ?1", [id])
-        .map_err(database_error)?;
-    if changes == 0 {
-        return Err("账户不存在".to_string());
-    }
-    Ok(OkResponse { ok: true })
-}
-
-#[tauri::command]
-fn reorder_accounts(ids: Vec<i64>, state: State<'_, AppState>) -> Result<Vec<Account>, String> {
-    let mut database = lock_database(&state)?;
-    let mut current_ids: Vec<i64> = list_accounts(&database)?
+fn reorder_account_records(database: &mut Connection, ids: &[i64]) -> Result<Vec<Account>, String> {
+    let mut current_ids: Vec<i64> = list_accounts(database)?
         .into_iter()
         .map(|account| account.id)
         .collect();
-    let mut requested_ids = ids.clone();
+    let mut requested_ids = ids.to_vec();
     current_ids.sort_unstable();
     requested_ids.sort_unstable();
     requested_ids.dedup();
@@ -522,16 +526,14 @@ fn reorder_accounts(ids: Vec<i64>, state: State<'_, AppState>) -> Result<Vec<Acc
             .map_err(database_error)?;
     }
     transaction.commit().map_err(database_error)?;
-    list_accounts(&database)
+    list_accounts(database)
 }
 
-#[tauri::command]
-fn create_transaction(
-    input: TransactionInput,
-    state: State<'_, AppState>,
+fn create_transaction_record(
+    database: &mut Connection,
+    input: &TransactionInput,
 ) -> Result<TransactionResult, String> {
-    validate_transaction(&input)?;
-    let mut database = lock_database(&state)?;
+    validate_transaction(input)?;
     let transaction = database.transaction().map_err(database_error)?;
     let account = get_account(&transaction, input.account_id)?;
     let amount = decimal_from_number(input.amount, "金额")?;
@@ -574,16 +576,14 @@ fn create_transaction(
 
     Ok(TransactionResult {
         transaction: created,
-        account: get_account(&database, account.id)?,
+        account: get_account(database, account.id)?,
     })
 }
 
-#[tauri::command]
-fn delete_transaction(id: i64, state: State<'_, AppState>) -> Result<AccountResult, String> {
+fn delete_transaction_record(database: &mut Connection, id: i64) -> Result<AccountResult, String> {
     if id <= 0 {
         return Err("ID 无效".to_string());
     }
-    let mut database = lock_database(&state)?;
     let transaction = database.transaction().map_err(database_error)?;
     let record = get_transaction(&transaction, id)?;
     let account = get_account(&transaction, record.account_id)?;
@@ -606,14 +606,12 @@ fn delete_transaction(id: i64, state: State<'_, AppState>) -> Result<AccountResu
         .map_err(database_error)?;
     transaction.commit().map_err(database_error)?;
     Ok(AccountResult {
-        account: get_account(&database, account.id)?,
+        account: get_account(database, account.id)?,
     })
 }
 
-#[tauri::command]
-fn update_settings(settings: Settings, state: State<'_, AppState>) -> Result<Settings, String> {
-    validate_settings(&settings)?;
-    let database = lock_database(&state)?;
+fn update_settings_record(database: &Connection, settings: &Settings) -> Result<Settings, String> {
+    validate_settings(settings)?;
     database
         .execute(
             "UPDATE settings SET base_currency = ?1, masked = ?2, theme = ?3 WHERE id = 1",
@@ -624,7 +622,71 @@ fn update_settings(settings: Settings, state: State<'_, AppState>) -> Result<Set
             ],
         )
         .map_err(database_error)?;
-    get_settings(&database)
+    get_settings(database)
+}
+
+#[tauri::command]
+fn get_snapshot(state: State<'_, AppState>) -> Result<LedgerSnapshot, String> {
+    let database = lock_database(&state)?;
+    snapshot(&database)
+}
+
+#[tauri::command]
+fn create_account(input: AccountInput, state: State<'_, AppState>) -> Result<Account, String> {
+    let database = lock_database(&state)?;
+    create_account_record(&database, &input)
+}
+
+#[tauri::command]
+fn update_account(
+    id: i64,
+    input: AccountInput,
+    state: State<'_, AppState>,
+) -> Result<Account, String> {
+    let database = lock_database(&state)?;
+    update_account_record(&database, id, &input)
+}
+
+#[tauri::command]
+fn delete_account(id: i64, state: State<'_, AppState>) -> Result<OkResponse, String> {
+    if id <= 0 {
+        return Err("ID 无效".to_string());
+    }
+    let database = lock_database(&state)?;
+    let changes = database
+        .execute("DELETE FROM accounts WHERE id = ?1", [id])
+        .map_err(database_error)?;
+    if changes == 0 {
+        return Err("账户不存在".to_string());
+    }
+    Ok(OkResponse { ok: true })
+}
+
+#[tauri::command]
+fn reorder_accounts(ids: Vec<i64>, state: State<'_, AppState>) -> Result<Vec<Account>, String> {
+    let mut database = lock_database(&state)?;
+    reorder_account_records(&mut database, &ids)
+}
+
+#[tauri::command]
+fn create_transaction(
+    input: TransactionInput,
+    state: State<'_, AppState>,
+) -> Result<TransactionResult, String> {
+    let mut database = lock_database(&state)?;
+    create_transaction_record(&mut database, &input)
+}
+
+#[tauri::command]
+fn delete_transaction(id: i64, state: State<'_, AppState>) -> Result<AccountResult, String> {
+    let mut database = lock_database(&state)?;
+    delete_transaction_record(&mut database, id)
+}
+
+#[tauri::command]
+fn update_settings(settings: Settings, state: State<'_, AppState>) -> Result<Settings, String> {
+    let database = lock_database(&state)?;
+    update_settings_record(&database, &settings)
 }
 
 #[tauri::command]
@@ -650,13 +712,15 @@ fn clear_ledger(state: State<'_, AppState>) -> Result<LedgerSnapshot, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
-            let database = Connection::open(data_dir.join("accounting.sqlite"))?;
+            let mut database = Connection::open(data_dir.join("accounting.sqlite"))?;
             database.pragma_update(None, "journal_mode", "WAL")?;
             database.pragma_update(None, "foreign_keys", "ON")?;
-            database.execute_batch(SCHEMA)?;
+            migrate_database(&mut database).map_err(std::io::Error::other)?;
             app.manage(AppState {
                 database: Mutex::new(database),
             });
@@ -687,7 +751,33 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::is_date;
+    use super::{
+        create_account_record, create_transaction_record, delete_transaction_record, is_date,
+        migrate_database, reorder_account_records, schema_version, snapshot, update_account_record,
+        update_settings_record, AccountInput, Connection, Settings, TransactionInput,
+        CURRENT_SCHEMA_VERSION, SCHEMA,
+    };
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct UpdateAccountFixture {
+        id: i64,
+        input: AccountInput,
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct BackendConsistencyFixture {
+        schema_version: i64,
+        accounts: Vec<AccountInput>,
+        reorder: Vec<i64>,
+        update_account: UpdateAccountFixture,
+        transactions: Vec<TransactionInput>,
+        delete_transaction_id: i64,
+        settings: Settings,
+        expected: serde_json::Value,
+    }
 
     #[test]
     fn validates_calendar_dates() {
@@ -697,5 +787,79 @@ mod tests {
         assert!(!is_date("2026-04-31"));
         assert!(!is_date("2026-13-01"));
         assert!(!is_date("２０２６-08-23"));
+    }
+
+    #[test]
+    fn migrates_legacy_database_without_losing_data() {
+        let mut database = Connection::open_in_memory().expect("open database");
+        database
+            .execute_batch(SCHEMA)
+            .expect("create legacy schema");
+        database
+            .execute(
+                "INSERT INTO accounts (name, type, currency, balance, sort_order) VALUES (?1, 'cash', 'CNY', '100', 0)",
+                ["迁移前账户"],
+            )
+            .expect("insert legacy account");
+
+        assert_eq!(schema_version(&database).expect("read old version"), 0);
+        migrate_database(&mut database).expect("migrate database");
+        assert_eq!(
+            schema_version(&database).expect("read migrated version"),
+            CURRENT_SCHEMA_VERSION
+        );
+        let account_name: String = database
+            .query_row("SELECT name FROM accounts WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+            .expect("read preserved account");
+        assert_eq!(account_name, "迁移前账户");
+    }
+
+    #[test]
+    fn rejects_newer_database_versions() {
+        let mut database = Connection::open_in_memory().expect("open database");
+        database
+            .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION + 1)
+            .expect("set future version");
+        let error = migrate_database(&mut database).expect_err("future database must fail");
+        assert!(error.contains("高于当前程序支持的版本"));
+    }
+
+    #[test]
+    fn matches_typescript_shared_backend_contract() {
+        let fixture: BackendConsistencyFixture = serde_json::from_str(include_str!(
+            "../../tests/fixtures/backend-consistency.json"
+        ))
+        .expect("parse shared backend fixture");
+        let mut database = Connection::open_in_memory().expect("open database");
+        migrate_database(&mut database).expect("migrate database");
+
+        assert_eq!(CURRENT_SCHEMA_VERSION, fixture.schema_version);
+        assert_eq!(
+            schema_version(&database).expect("read schema version"),
+            fixture.schema_version
+        );
+
+        for input in &fixture.accounts {
+            create_account_record(&database, input).expect("create fixture account");
+        }
+        reorder_account_records(&mut database, &fixture.reorder).expect("reorder fixture accounts");
+        update_account_record(
+            &database,
+            fixture.update_account.id,
+            &fixture.update_account.input,
+        )
+        .expect("update fixture account");
+        for input in &fixture.transactions {
+            create_transaction_record(&mut database, input).expect("create fixture transaction");
+        }
+        delete_transaction_record(&mut database, fixture.delete_transaction_id)
+            .expect("delete fixture transaction");
+        update_settings_record(&database, &fixture.settings).expect("update fixture settings");
+
+        let actual = serde_json::to_value(snapshot(&database).expect("read final snapshot"))
+            .expect("serialize final snapshot");
+        assert_eq!(actual, fixture.expected);
     }
 }

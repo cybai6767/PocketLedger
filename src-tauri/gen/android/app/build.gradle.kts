@@ -13,6 +13,18 @@ val tauriProperties = Properties().apply {
     }
 }
 
+val releaseSigningValues = mapOf(
+    "storeFile" to System.getenv("ANDROID_KEYSTORE_PATH"),
+    "storePassword" to System.getenv("ANDROID_KEYSTORE_PASSWORD"),
+    "keyAlias" to System.getenv("ANDROID_KEY_ALIAS"),
+    "keyPassword" to System.getenv("ANDROID_KEY_PASSWORD"),
+)
+val configuredReleaseSigningValues = releaseSigningValues.values.count { !it.isNullOrBlank() }
+if (configuredReleaseSigningValues !in listOf(0, releaseSigningValues.size)) {
+    throw GradleException("Android release signing environment variables must be configured together")
+}
+val releaseSigningEnabled = configuredReleaseSigningValues == releaseSigningValues.size
+
 android {
     compileSdk = 36
     namespace = "com.axiaobo.accountingtool"
@@ -23,6 +35,16 @@ android {
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    signingConfigs {
+        if (releaseSigningEnabled) {
+            create("release") {
+                storeFile = file(releaseSigningValues.getValue("storeFile")!!)
+                storePassword = releaseSigningValues.getValue("storePassword")
+                keyAlias = releaseSigningValues.getValue("keyAlias")
+                keyPassword = releaseSigningValues.getValue("keyPassword")
+            }
+        }
     }
     buildTypes {
         getByName("debug") {
@@ -38,6 +60,9 @@ android {
             }
         }
         getByName("release") {
+            if (releaseSigningEnabled) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

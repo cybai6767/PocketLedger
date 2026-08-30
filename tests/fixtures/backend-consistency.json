@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "accounts": [
+    { "name": "  现金钱包  ", "type": "wallet", "currency": "CNY", "balance": 100 },
+    { "name": "美元账户", "type": "bank", "currency": "USD", "balance": 50 }
+  ],
+  "reorder": [2, 1],
+  "updateAccount": {
+    "id": 2,
+    "input": { "name": "  美元储蓄  ", "type": "bank", "currency": "USD", "balance": 50.5 }
+  },
+  "transactions": [
+    {
+      "date": "2026-08-30",
+      "type": "income",
+      "accountId": 1,
+      "amount": 0.1,
+      "category": "  工资  ",
+      "note": "  测试收入  "
+    },
+    {
+      "date": "2026-08-29",
+      "type": "expense",
+      "accountId": 1,
+      "amount": 12.34,
+      "category": "  餐饮  ",
+      "note": "  午餐  "
+    }
+  ],
+  "deleteTransactionId": 1,
+  "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark" },
+  "expected": {
+    "accounts": [
+      { "id": 2, "name": "美元储蓄", "type": "bank", "currency": "USD", "balance": 50.5, "sortOrder": 0 },
+      { "id": 1, "name": "现金钱包", "type": "wallet", "currency": "CNY", "balance": 87.66, "sortOrder": 1 }
+    ],
+    "transactions": [
+      {
+        "id": 2,
+        "date": "2026-08-29",
+        "type": "expense",
+        "accountId": 1,
+        "amount": 12.34,
+        "currency": "CNY",
+        "category": "餐饮",
+        "note": "午餐"
+      }
+    ],
+    "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark" }
+  }
+}

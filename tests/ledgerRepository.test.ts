@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LedgerDatabase } from '../server/utils/database'
-import { openLedgerDatabase } from '../server/utils/database'
+import {
+  getLedgerSchemaVersion,
+  migrateLedgerDatabase,
+  openLedgerDatabase,
+} from '../server/utils/database'
+import { LEDGER_SCHEMA_VERSION } from '../shared/types/ledger'
 import {
   clearLedger,
   createAccount,
@@ -69,5 +74,22 @@ describe('ledger repository', () => {
     expect(cleared.accounts).toEqual([])
     expect(cleared.transactions).toEqual([])
     expect(cleared.settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light' })
+  })
+
+  it('migrates a legacy database without losing ledger data', () => {
+    const account = createAccount(database, {
+      name: '迁移前账户', type: 'cash', currency: 'CNY', balance: 100,
+    })
+    database.pragma('user_version = 0')
+
+    migrateLedgerDatabase(database)
+
+    expect(getLedgerSchemaVersion(database)).toBe(LEDGER_SCHEMA_VERSION)
+    expect(getSnapshot(database).accounts).toContainEqual(account)
+  })
+
+  it('rejects databases created by a newer app version', () => {
+    database.pragma(`user_version = ${LEDGER_SCHEMA_VERSION + 1}`)
+    expect(() => migrateLedgerDatabase(database)).toThrow('高于当前程序支持的版本')
   })
 })

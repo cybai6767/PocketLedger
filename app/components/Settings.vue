@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { Currency, Settings } from '~~/shared/types/ledger'
 import { CURRENCY_LABELS } from '~~/shared/types/ledger'
+import { exportLedgerCsv, exportLedgerXlsx } from '../utils/ledgerBackup'
 
-const { state, busy, updateSettings, clearAll } = useLedger()
+const { state, busy, setError, updateSettings, clearAll } = useLedger()
+const isTauri = Boolean(useRuntimeConfig().public.tauri)
+const exporting = ref<'csv' | 'xlsx' | null>(null)
+const exportMessage = ref('')
 
 function setPreference<K extends keyof Settings>(key: K, value: Settings[K]) {
   void updateSettings({ [key]: value })
@@ -13,8 +18,26 @@ function changeCurrency(event: Event) {
 }
 
 async function confirmClear() {
-  if (confirm('确定要清空服务端的全部账户和流水吗？此操作不可恢复。')) {
+  if (confirm('确定要清空当前账本的全部账户和流水吗？此操作不可恢复。')) {
     await clearAll()
+  }
+}
+
+async function exportBackup(format: 'csv' | 'xlsx') {
+  exporting.value = format
+  exportMessage.value = ''
+  setError(null)
+  try {
+    const saved = format === 'xlsx'
+      ? await exportLedgerXlsx(state, isTauri)
+      : await exportLedgerCsv(state, isTauri)
+    if (saved) exportMessage.value = `${format.toUpperCase()} 备份已保存`
+  }
+  catch (error) {
+    setError(error instanceof Error ? `导出失败：${error.message}` : '导出失败，请稍后再试')
+  }
+  finally {
+    exporting.value = null
   }
 }
 </script>
@@ -24,7 +47,7 @@ async function confirmClear() {
     <div class="section-heading">
       <div>
         <h3>偏好设置</h3>
-        <p>这些设置会保存到服务端，在刷新页面后仍然生效。</p>
+        <p>这些设置会保存到当前账本，在刷新或重新打开应用后仍然生效。</p>
       </div>
       <span class="persistence-badge">已持久化</span>
     </div>
@@ -62,6 +85,34 @@ async function confirmClear() {
     </div>
   </section>
 
+  <section class="panel backup">
+    <div class="section-heading">
+      <div>
+        <h3>数据导出与备份</h3>
+        <p>Excel 备份按账户、流水和设置分表保存；CSV 备份使用记录类型区分全部数据。</p>
+      </div>
+      <span class="persistence-badge">数据库 v1</span>
+    </div>
+    <div class="backup-actions">
+      <button
+        class="backup-export"
+        :disabled="busy || exporting !== null"
+        @click="exportBackup('xlsx')"
+      >
+        {{ exporting === 'xlsx' ? '正在生成…' : '导出 Excel 备份' }}
+      </button>
+      <button
+        class="backup-export"
+        :disabled="busy || exporting !== null"
+        @click="exportBackup('csv')"
+      >
+        {{ exporting === 'csv' ? '正在生成…' : '导出 CSV 备份' }}
+      </button>
+      <span v-if="exportMessage" class="export-success" role="status">{{ exportMessage }}</span>
+    </div>
+    <p class="backup-tip">备份文件包含未遮罩的真实金额，请保存到可信位置，不要公开上传。</p>
+  </section>
+
   <section class="panel danger">
     <div>
       <h3>危险区域</h3>
@@ -78,6 +129,11 @@ async function confirmClear() {
 h3 { margin: 0 0 5px; }
 p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .persistence-badge { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: var(--success-soft); color: var(--success); font-size: 11px; }
+.backup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.backup-actions button { padding: 10px 16px; border-radius: 9px; cursor: pointer; }
+.backup-export { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.export-success { color: var(--success); font-size: 12px; }
+.backup-tip { margin-top: 12px; color: var(--danger); }
 .field { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 0; border-bottom: 1px solid var(--border); }
 .field:last-child { border-bottom: 0; padding-bottom: 2px; }
 label { display: block; margin-bottom: 3px; font-size: 14px; font-weight: 650; }
@@ -96,5 +152,7 @@ button:disabled, select:disabled { opacity: .55; cursor: wait; }
   .seg { width: 100%; }
   .seg button { flex: 1; }
   .danger-btn { width: 100%; }
+  .backup-actions { align-items: stretch; flex-direction: column; }
+  .backup-actions button { width: 100%; }
 }
 </style>

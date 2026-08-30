@@ -5,6 +5,9 @@ export const ACCOUNT_TYPES = [
 export const CURRENCIES = ['CNY', 'HKD', 'USD', 'EUR', 'USDT', 'BTC'] as const
 export const TX_TYPES = ['income', 'expense'] as const
 
+export const LEDGER_SCHEMA_VERSION = 1
+export const BACKUP_FORMAT_VERSION = 1
+
 export type AccountType = (typeof ACCOUNT_TYPES)[number]
 export type Currency = (typeof CURRENCIES)[number]
 export type TxType = (typeof TX_TYPES)[number]
