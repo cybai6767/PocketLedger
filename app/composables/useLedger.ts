@@ -2,11 +2,15 @@ import { computed } from 'vue'
 import type {
   Account,
   AccountInput,
+  BalanceCheck,
   Currency,
+  LedgerBackup,
   LedgerSnapshot,
   Settings,
   Transaction,
   TransactionInput,
+  TransactionMutationResult,
+  TransferInput,
 } from '~~/shared/types/ledger'
 import { DEFAULT_SETTINGS } from '~~/shared/types/ledger'
 
@@ -90,6 +94,12 @@ export function useLedger() {
     return $fetch<LedgerSnapshot>('/api/ledger')
   }
 
+  async function loadLatestAutomaticBackup(): Promise<LedgerBackup | null> {
+    return isTauri
+      ? invokeMobile<LedgerBackup | null>('get_latest_automatic_backup')
+      : $fetch<LedgerBackup | null>('/api/ledger/automatic-backup')
+  }
+
   function setTab(key: TabKey) {
     activeTab.value = key
   }
@@ -110,11 +120,11 @@ export function useLedger() {
   }
 
   const monthIncome = computed(() => state.value.transactions
-    .filter(transaction => transaction.type === 'income' && transaction.date.startsWith(thisMonth()))
+    .filter(transaction => !transaction.transferId && transaction.type === 'income' && transaction.date.startsWith(thisMonth()))
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
   const monthExpense = computed(() => state.value.transactions
-    .filter(transaction => transaction.type === 'expense' && transaction.date.startsWith(thisMonth()))
+    .filter(transaction => !transaction.transferId && transaction.type === 'expense' && transaction.date.startsWith(thisMonth()))
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
   async function addAccount(input: AccountInput): Promise<boolean> {
@@ -170,12 +180,44 @@ export function useLedger() {
 
   async function removeTransaction(id: number): Promise<boolean> {
     const result = await mutate(() => isTauri
-      ? invokeMobile<{ account: Account }>('delete_transaction', { id })
-      : $fetch<{ account: Account }>(`/api/transactions/${id}`, { method: 'DELETE' }))
+      ? invokeMobile<TransactionMutationResult>('delete_transaction', { id })
+      : $fetch<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'DELETE' }))
     if (!result) return false
-    state.value.transactions = state.value.transactions.filter(transaction => transaction.id !== id)
-    replaceAccount(result.account)
+    const removedIds = new Set(result.transactions.map(transaction => transaction.id))
+    state.value.transactions = state.value.transactions.filter(transaction => !removedIds.has(transaction.id))
+    result.accounts.forEach(replaceAccount)
     return true
+  }
+
+  async function editTransaction(id: number, input: TransactionInput): Promise<boolean> {
+    const result = await mutate(() => isTauri
+      ? invokeMobile<TransactionMutationResult>('update_transaction', { id, input })
+      : $fetch<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'PUT', body: input }))
+    if (!result) return false
+    const updated = result.transactions[0]!
+    const index = state.value.transactions.findIndex(transaction => transaction.id === updated.id)
+    if (index >= 0) state.value.transactions[index] = updated
+    result.accounts.forEach(replaceAccount)
+    state.value.transactions.sort((left, right) => right.date.localeCompare(left.date) || right.id - left.id)
+    return true
+  }
+
+  async function addTransfer(input: TransferInput): Promise<boolean> {
+    const result = await mutate(() => isTauri
+      ? invokeMobile<TransactionMutationResult>('create_transfer', { input })
+      : $fetch<TransactionMutationResult>('/api/transfers', { method: 'POST', body: input }))
+    if (!result) return false
+    state.value.transactions.unshift(...result.transactions.reverse())
+    result.accounts.forEach(replaceAccount)
+    return true
+  }
+
+  async function checkBalanceIntegrity(repair = false): Promise<BalanceCheck | undefined> {
+    const result = await mutate(() => isTauri
+      ? invokeMobile<BalanceCheck>(repair ? 'repair_balances' : 'check_balances')
+      : $fetch<BalanceCheck>('/api/ledger/integrity', { method: repair ? 'POST' : 'GET' }))
+    if (result?.repaired) hydrate(await loadSnapshot())
+    return result
   }
 
   function replaceAccount(account: Account) {
@@ -207,6 +249,15 @@ export function useLedger() {
     return true
   }
 
+  async function restoreBackup(backup: LedgerBackup): Promise<boolean> {
+    const snapshot = await mutate(() => isTauri
+      ? invokeMobile<LedgerSnapshot>('restore_ledger', { backup })
+      : $fetch<LedgerSnapshot>('/api/ledger/restore', { method: 'POST', body: backup }))
+    if (!snapshot) return false
+    hydrate(snapshot)
+    return true
+  }
+
   function toggleTheme() {
     const theme = state.value.settings.theme === 'light' ? 'dark' : 'light'
     void updateSettings({ theme })
@@ -223,6 +274,7 @@ export function useLedger() {
     monthExpense,
     hydrate,
     loadSnapshot,
+    loadLatestAutomaticBackup,
     setError,
     setTab,
     toBase,
@@ -231,9 +283,13 @@ export function useLedger() {
     removeAccount,
     reorderAccounts,
     addTransaction,
+    editTransaction,
+    addTransfer,
     removeTransaction,
+    checkBalanceIntegrity,
     updateSettings,
     clearAll,
+    restoreBackup,
     toggleTheme,
   }
 }

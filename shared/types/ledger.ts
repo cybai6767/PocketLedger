@@ -5,8 +5,9 @@ export const ACCOUNT_TYPES = [
 export const CURRENCIES = ['CNY', 'HKD', 'USD', 'EUR', 'USDT', 'BTC'] as const
 export const TX_TYPES = ['income', 'expense'] as const
 
-export const LEDGER_SCHEMA_VERSION = 1
+export const LEDGER_SCHEMA_VERSION = 2
 export const BACKUP_FORMAT_VERSION = 1
+export const BACKUP_FORMAT = 'accounting-tool-backup' as const
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number]
 export type Currency = (typeof CURRENCIES)[number]
@@ -37,6 +38,7 @@ export interface Transaction {
   currency: Currency
   category: string
   note?: string
+  transferId?: string
 }
 
 export interface TransactionInput {
@@ -46,6 +48,32 @@ export interface TransactionInput {
   amount: number
   category: string
   note?: string
+}
+
+export interface TransferInput {
+  date: string
+  fromAccountId: number
+  toAccountId: number
+  amount: number
+  note?: string
+}
+
+export interface TransactionMutationResult {
+  transactions: Transaction[]
+  accounts: Account[]
+}
+
+export interface BalanceIssue {
+  accountId: number
+  accountName: string
+  storedBalance: number
+  expectedBalance: number
+}
+
+export interface BalanceCheck {
+  ok: boolean
+  repaired: boolean
+  issues: BalanceIssue[]
 }
 
 export interface Settings {
@@ -58,6 +86,21 @@ export interface LedgerSnapshot {
   accounts: Account[]
   transactions: Transaction[]
   settings: Settings
+}
+
+export interface LedgerBackup {
+  format: typeof BACKUP_FORMAT
+  formatVersion: number
+  schemaVersion: number
+  exportedAt: string
+  data: LedgerSnapshot
+}
+
+export interface LedgerBackupPreview {
+  backup: LedgerBackup
+  accountCount: number
+  transactionCount: number
+  exportedAt: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {

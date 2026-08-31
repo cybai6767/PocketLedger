@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import Database from 'better-sqlite3'
+import Decimal from 'decimal.js'
 import { LEDGER_SCHEMA_VERSION } from '../../shared/types/ledger'
 
 export type LedgerDatabase = Database.Database
@@ -49,10 +50,37 @@ const schema = `
 interface Migration {
   version: number
   sql: string
+  afterSql?: (database: LedgerDatabase) => void
 }
 
 const migrations: Migration[] = [
   { version: 1, sql: schema },
+  {
+    version: 2,
+    sql: `
+      ALTER TABLE accounts ADD COLUMN opening_balance TEXT NOT NULL DEFAULT '0';
+      ALTER TABLE transactions ADD COLUMN transfer_id TEXT;
+      CREATE INDEX idx_transactions_transfer_id ON transactions(transfer_id);
+    `,
+    afterSql(database) {
+      const accounts = database.prepare('SELECT id, balance FROM accounts').all() as Array<{
+        id: number
+        balance: string
+      }>
+      const rows = database.prepare(`
+        SELECT type, amount FROM transactions WHERE account_id = ?
+      `)
+      const update = database.prepare('UPDATE accounts SET opening_balance = ? WHERE id = ?')
+      for (const account of accounts) {
+        const net = (rows.all(account.id) as Array<{ type: 'income' | 'expense', amount: string }>)
+          .reduce(
+            (sum, item) => item.type === 'income' ? sum.plus(item.amount) : sum.minus(item.amount),
+            new Decimal(0),
+          )
+        update.run(new Decimal(account.balance).minus(net).toDecimalPlaces(8).toString(), account.id)
+      }
+    },
+  },
 ]
 
 export function getLedgerSchemaVersion(database: LedgerDatabase): number {
@@ -73,6 +101,7 @@ export function migrateLedgerDatabase(database: LedgerDatabase): void {
     database.exec('BEGIN IMMEDIATE')
     try {
       database.exec(migration.sql)
+      migration.afterSql?.(database)
       database.pragma(`user_version = ${migration.version}`)
       database.exec('COMMIT')
     }

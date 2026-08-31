@@ -1,12 +1,17 @@
 import type { Worksheet } from 'exceljs'
 import {
+  ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
+  BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
+  CURRENCIES,
   LEDGER_SCHEMA_VERSION,
+  TX_TYPES,
 } from '../../shared/types/ledger'
-import type { LedgerSnapshot } from '../../shared/types/ledger'
+import type { LedgerBackup, LedgerBackupPreview, LedgerSnapshot } from '../../shared/types/ledger'
+import { z } from 'zod'
 
-type BackupFormat = 'csv' | 'xlsx'
+type BackupFormat = 'csv' | 'xlsx' | 'json'
 
 const PRODUCT_NAME = '我的记账本'
 const ACCENT = 'FF5B5BD6'
@@ -62,7 +67,7 @@ async function saveBytes(
     const path = await save({
       defaultPath: filename,
       filters: [{
-        name: format === 'xlsx' ? 'Excel 工作簿' : 'CSV 文件',
+        name: format === 'xlsx' ? 'Excel 工作簿' : format === 'json' ? '完整 JSON 备份' : 'CSV 文件',
         extensions: [format],
       }],
     })
@@ -74,7 +79,7 @@ async function saveBytes(
   const owned = toOwnedBytes(bytes)
   const mime = format === 'xlsx'
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    : 'text/csv;charset=utf-8'
+    : format === 'json' ? 'application/json;charset=utf-8' : 'text/csv;charset=utf-8'
   const url = URL.createObjectURL(new Blob([owned.buffer], { type: mime }))
   const anchor = document.createElement('a')
   anchor.href = url
@@ -85,6 +90,185 @@ async function saveBytes(
   anchor.remove()
   setTimeout(() => URL.revokeObjectURL(url), 0)
   return true
+}
+
+const money = z.number().finite().min(-1_000_000_000_000).max(1_000_000_000_000)
+const jsonBackupSchema = z.object({
+  format: z.literal(BACKUP_FORMAT),
+  formatVersion: z.literal(BACKUP_FORMAT_VERSION, '备份格式版本不受支持'),
+  schemaVersion: z.number().int().min(1).max(
+    LEDGER_SCHEMA_VERSION,
+    '备份数据库版本过新，请升级应用后再恢复',
+  ),
+  exportedAt: z.iso.datetime({ offset: true }),
+  data: z.object({
+    accounts: z.array(z.object({
+      id: z.number().int().positive(),
+      name: z.string().trim().min(1).max(80),
+      type: z.enum(ACCOUNT_TYPES),
+      currency: z.enum(CURRENCIES),
+      balance: money,
+      sortOrder: z.number().int().min(0).max(100_000),
+    }).strict()).max(10_000),
+    transactions: z.array(z.object({
+      id: z.number().int().positive(),
+      date: z.iso.date(),
+      type: z.enum(TX_TYPES),
+      accountId: z.number().int().positive(),
+      amount: money.positive(),
+      currency: z.enum(CURRENCIES),
+      category: z.string().trim().min(1).max(40),
+      note: z.string().trim().max(200).optional(),
+      transferId: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+    }).strict()).max(1_000_000),
+    settings: z.object({
+      baseCurrency: z.enum(CURRENCIES),
+      masked: z.boolean(),
+      theme: z.enum(['light', 'dark']),
+    }).strict(),
+  }).strict(),
+}).strict().superRefine((backup, context) => {
+  const accounts = new Map<number, string>()
+  const transactionIds = new Set<number>()
+  for (const account of backup.data.accounts) {
+    if (accounts.has(account.id)) {
+      context.addIssue({ code: 'custom', path: ['data', 'accounts'], message: `账户 ID ${account.id} 重复` })
+    }
+    accounts.set(account.id, account.currency)
+  }
+  for (const transaction of backup.data.transactions) {
+    if (transactionIds.has(transaction.id)) {
+      context.addIssue({ code: 'custom', path: ['data', 'transactions'], message: `流水 ID ${transaction.id} 重复` })
+    }
+    transactionIds.add(transaction.id)
+    const currency = accounts.get(transaction.accountId)
+    if (!currency) {
+      context.addIssue({ code: 'custom', path: ['data', 'transactions'], message: `流水 ${transaction.id} 引用了不存在的账户` })
+    }
+    else if (currency !== transaction.currency) {
+      context.addIssue({ code: 'custom', path: ['data', 'transactions'], message: `流水 ${transaction.id} 的币种与账户不一致` })
+    }
+  }
+  const transfers = new Map<string, typeof backup.data.transactions>()
+  for (const transaction of backup.data.transactions) {
+    if (!transaction.transferId) continue
+    const records = transfers.get(transaction.transferId) ?? []
+    records.push(transaction)
+    transfers.set(transaction.transferId, records)
+  }
+  for (const [transferId, records] of transfers) {
+    const types = new Set(records.map(record => record.type))
+    const accounts = new Set(records.map(record => record.accountId))
+    if (
+      records.length !== 2
+      || types.size !== 2
+      || accounts.size !== 2
+      || records[0]?.amount !== records[1]?.amount
+      || records[0]?.currency !== records[1]?.currency
+    ) {
+      context.addIssue({ code: 'custom', path: ['data', 'transactions'], message: `转账 ${transferId} 的两条流水不完整或不一致` })
+    }
+  }
+})
+
+export function createLedgerJson(snapshot: LedgerSnapshot, exportedAt = new Date()): string {
+  const backup: LedgerBackup = {
+    format: BACKUP_FORMAT,
+    formatVersion: BACKUP_FORMAT_VERSION,
+    schemaVersion: LEDGER_SCHEMA_VERSION,
+    exportedAt: exportedAt.toISOString(),
+    data: snapshot,
+  }
+  return `${JSON.stringify(backup, null, 2)}\n`
+}
+
+export function parseLedgerJson(source: string): LedgerBackupPreview {
+  if (new TextEncoder().encode(source).byteLength > 50 * 1024 * 1024) {
+    throw new Error('备份文件超过 50 MB，已拒绝读取')
+  }
+  let value: unknown
+  try {
+    value = JSON.parse(source)
+  }
+  catch {
+    throw new Error('文件不是有效的 JSON 备份')
+  }
+  const result = jsonBackupSchema.safeParse(value)
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? '备份内容无效')
+  }
+  return {
+    backup: result.data,
+    accountCount: result.data.data.accounts.length,
+    transactionCount: result.data.data.transactions.length,
+    exportedAt: result.data.exportedAt,
+  }
+}
+
+export async function exportLedgerJson(
+  snapshot: LedgerSnapshot,
+  isTauri: boolean,
+): Promise<boolean> {
+  return saveBytes(
+    new TextEncoder().encode(createLedgerJson(snapshot)),
+    backupFilename('json'),
+    'json',
+    isTauri,
+  )
+}
+
+async function selectBrowserJson(): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    let settled = false
+    const finish = (value: string | null, error?: unknown) => {
+      if (settled) return
+      settled = true
+      input.remove()
+      if (error) reject(error)
+      else resolve(value)
+    }
+    input.type = 'file'
+    input.accept = '.json,application/json'
+    input.style.display = 'none'
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0]
+      if (!file) return finish(null)
+      if (file.size > 50 * 1024 * 1024) {
+        return finish(null, new Error('备份文件超过 50 MB，已拒绝读取'))
+      }
+      try {
+        finish(await file.text())
+      }
+      catch (error) {
+        finish(null, error)
+      }
+    }, { once: true })
+    input.addEventListener('cancel', () => finish(null), { once: true })
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+export async function selectLedgerJson(isTauri: boolean): Promise<LedgerBackupPreview | null> {
+  let source: string | null
+  if (isTauri) {
+    const [{ open }, { readTextFile }] = await Promise.all([
+      import('@tauri-apps/plugin-dialog'),
+      import('@tauri-apps/plugin-fs'),
+    ])
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: '完整 JSON 备份', extensions: ['json'] }],
+    })
+    if (!path) return null
+    source = await readTextFile(path)
+  }
+  else {
+    source = await selectBrowserJson()
+  }
+  return source === null ? null : parseLedgerJson(source)
 }
 
 function formatExportedAt(date: Date): string {

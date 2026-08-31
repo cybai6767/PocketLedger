@@ -9,7 +9,7 @@ describe('release configuration', () => {
     const tauriVersion = (JSON.parse(rootFile('src-tauri/tauri.conf.json')) as { version: string }).version
     const cargoVersion = /^version = "([^"]+)"/m.exec(rootFile('src-tauri/Cargo.toml'))?.[1]
 
-    expect(packageVersion).toBe('1.0.2')
+    expect(packageVersion).toBe('1.0.3')
     expect(tauriVersion).toBe(packageVersion)
     expect(cargoVersion).toBe(packageVersion)
   })

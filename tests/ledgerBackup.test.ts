@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { LedgerSnapshot } from '../shared/types/ledger'
-import { createLedgerCsv, createLedgerXlsx } from '../app/utils/ledgerBackup'
+import {
+  createLedgerCsv,
+  createLedgerJson,
+  createLedgerXlsx,
+  parseLedgerJson,
+} from '../app/utils/ledgerBackup'
 
 const snapshot: LedgerSnapshot = {
   accounts: [
@@ -24,6 +29,30 @@ const snapshot: LedgerSnapshot = {
 const exportedAt = new Date('2026-08-30T02:03:04.000Z')
 
 describe('ledger backup exports', () => {
+  it('round-trips a complete JSON backup without losing IDs or settings', () => {
+    const json = createLedgerJson(snapshot, exportedAt)
+    const preview = parseLedgerJson(json)
+
+    expect(preview.exportedAt).toBe(exportedAt.toISOString())
+    expect(preview.accountCount).toBe(1)
+    expect(preview.transactionCount).toBe(1)
+    expect(preview.backup.data).toEqual(snapshot)
+  })
+
+  it('rejects backups with broken account references before restoring', () => {
+    const value = JSON.parse(createLedgerJson(snapshot, exportedAt))
+    value.data.transactions[0].accountId = 999
+
+    expect(() => parseLedgerJson(JSON.stringify(value))).toThrow('引用了不存在的账户')
+  })
+
+  it('rejects backups from a newer database version', () => {
+    const value = JSON.parse(createLedgerJson(snapshot, exportedAt))
+    value.schemaVersion = 999
+
+    expect(() => parseLedgerJson(JSON.stringify(value))).toThrow('数据库版本过新')
+  })
+
   it('creates a UTF-8 CSV containing all ledger record types', () => {
     const csv = createLedgerCsv(snapshot, exportedAt)
 

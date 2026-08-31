@@ -20,10 +20,10 @@ const months = computed(() => {
 
 const trend = computed(() => months.value.map(m => {
   const income = state.transactions
-    .filter(t => t.type === 'income' && t.date.startsWith(m))
+    .filter(t => !t.transferId && t.type === 'income' && t.date.startsWith(m))
     .reduce((s, t) => s + toBase(t.amount, t.currency), 0)
   const expense = state.transactions
-    .filter(t => t.type === 'expense' && t.date.startsWith(m))
+    .filter(t => !t.transferId && t.type === 'expense' && t.date.startsWith(m))
     .reduce((s, t) => s + toBase(t.amount, t.currency), 0)
   return { m, income, expense }
 }))
@@ -40,7 +40,7 @@ const monthKey = computed(() => {
 const categories = computed(() => {
   const map = new Map<string, number>()
   for (const t of state.transactions) {
-    if (t.type !== 'expense' || !t.date.startsWith(monthKey.value)) continue
+    if (t.transferId || t.type !== 'expense' || !t.date.startsWith(monthKey.value)) continue
     map.set(t.category, (map.get(t.category) ?? 0) + toBase(t.amount, t.currency))
   }
   const total = [...map.values()].reduce((s, v) => s + v, 0) || 1
