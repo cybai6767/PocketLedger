@@ -1,10 +1,10 @@
 [package]
-name = "accounting-tool"
+name = "pocketledger"
 version = "1.0.3"
 description = "A local-first personal accounting application"
 authors = ["Axiaobo"]
 license = "MIT"
-repository = "https://github.com/Axiaobo7788/accounting-tool"
+repository = "https://github.com/bcielai321/PocketLedger"
 edition = "2021"
 rust-version = "1.77.2"
 

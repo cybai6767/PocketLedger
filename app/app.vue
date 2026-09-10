@@ -73,7 +73,7 @@ async function retry() {
       <div class="brand-row">
         <div class="brand">账</div>
         <div>
-          <h1 class="title">我的记账本</h1>
+          <h1 class="title">PocketLedger</h1>
           <p class="subtitle">{{ isTauri ? 'TAURI 离线版' : 'NUXT 全栈版' }}</p>
         </div>
       </div>

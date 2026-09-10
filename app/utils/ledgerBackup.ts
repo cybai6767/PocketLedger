@@ -13,7 +13,7 @@ import { z } from 'zod'
 
 type BackupFormat = 'csv' | 'xlsx' | 'json'
 
-const PRODUCT_NAME = '我的记账本'
+const PRODUCT_NAME = 'PocketLedger'
 const ACCENT = 'FF5B5BD6'
 const HEADER_TEXT = 'FFFFFFFF'
 const SOFT_FILL = 'FFF1F0FF'
@@ -32,7 +32,7 @@ function timestamp(date = new Date()): string {
 }
 
 function backupFilename(format: BackupFormat): string {
-  return `accounting-tool-backup-${timestamp()}.${format}`
+  return `PocketLedger-backup-${timestamp()}.${format}`
 }
 
 function safeText(value: string): string {

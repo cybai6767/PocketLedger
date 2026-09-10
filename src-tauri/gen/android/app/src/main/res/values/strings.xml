@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">"我的记账本"</string>
-    <string name="main_activity_title">"我的记账本"</string>
+    <string name="app_name">"PocketLedger"</string>
+    <string name="main_activity_title">"PocketLedger"</string>
 </resources>

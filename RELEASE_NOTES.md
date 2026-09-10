@@ -1,4 +1,4 @@
-# 我的记账本 v1.0.3
+# PocketLedger v1.0.3
 
 本次版本重点完善完整备份恢复和账本数据正确性，让长期使用、升级与误操作恢复更可靠。
 
@@ -17,8 +17,8 @@
 
 ## 下载说明
 
-- Windows 11/10 64 位：下载 `accounting-tool-v1.0.3-windows-x64-setup.exe`。
-- Android ARM64：下载 `accounting-tool-v1.0.3-android-arm64-release.apk`。
+- Windows 11/10 64 位：下载 `PocketLedger-v1.0.3-windows-x64-setup.exe`。
+- Android ARM64：下载 `PocketLedger-v1.0.3-android-arm64-release.apk`。
 
 已有数据会在首次运行时自动迁移。为稳妥起见，升级前仍建议先导出一份 JSON 完整备份。目前账户转账仅支持相同币种。
 

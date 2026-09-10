@@ -39,7 +39,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Copy-Item -LiteralPath $installer.FullName -Destination "dist/accounting-tool-${{ github.ref_name }}-windows-x64-setup.exe"
+          Copy-Item -LiteralPath $installer.FullName -Destination "dist/PocketLedger-${{ github.ref_name }}-windows-x64-setup.exe"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v6
@@ -88,11 +88,11 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           test -n "$ANDROID_KEYSTORE_BASE64"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/accounting-tool-release.p12"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/PocketLedger-release.p12"
 
       - name: Build signed Android ARM64 APK
         env:
-          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/accounting-tool-release.p12
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/PocketLedger-release.p12
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -104,7 +104,7 @@ jobs:
           test -n "$apk"
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk"
           mkdir -p dist
-          cp "$apk" "dist/accounting-tool-${GITHUB_REF_NAME}-android-arm64-release.apk"
+          cp "$apk" "dist/PocketLedger-${GITHUB_REF_NAME}-android-arm64-release.apk"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v6
@@ -129,7 +129,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "我的记账本 ${{ github.ref_name }}"
+          name: "PocketLedger ${{ github.ref_name }}"
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false

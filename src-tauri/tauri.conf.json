@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Accounting Tool",
+  "productName": "PocketLedger",
   "version": "1.0.3",
   "identifier": "com.axiaobo.accountingtool",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "我的记账本",
+        "title": "PocketLedger",
         "width": 1180,
         "height": 760,
         "minWidth": 360,

@@ -29,7 +29,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'zh-CN' },
-      title: '我的记账本',
+      title: 'PocketLedger',
       meta: [
         { name: 'description', content: '基于 Nuxt 的个人财务记账与资产管理工具' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },

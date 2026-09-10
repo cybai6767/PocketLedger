@@ -1,4 +1,4 @@
-# 我的记账本
+# PocketLedger
 
 一个基于 **Nuxt 4 + Vue 3 + Nitro + SQLite** 的个人财务记账全栈应用，同时提供 **Tauri 2** 桌面/Android 外壳。Web 版通过 Nitro API 读写服务端 SQLite，Tauri 版通过 Rust 命令读写设备本机 SQLite，可以完全离线使用。
 

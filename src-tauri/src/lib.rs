@@ -391,7 +391,7 @@ fn validate_settings(settings: &Settings) -> Result<(), String> {
 
 fn validate_backup(backup: &LedgerBackup) -> Result<(), String> {
     if backup.format != BACKUP_FORMAT {
-        return Err("不是我的记账本完整备份".to_string());
+        return Err("不是PocketLedger完整备份".to_string());
     }
     if backup.format_version != BACKUP_FORMAT_VERSION {
         return Err(format!("备份格式版本 {} 不受支持", backup.format_version));
