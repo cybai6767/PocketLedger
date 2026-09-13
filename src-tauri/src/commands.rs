@@ -95,6 +95,17 @@ pub(crate) fn create_transfer(
 }
 
 #[tauri::command]
+pub(crate) fn update_transfer(
+    id: i64,
+    input: TransferInput,
+    state: State<'_, AppState>,
+) -> Result<TransactionMutationResult, String> {
+    let mut database = lock_database(&state)?;
+    save_automatic_backup(&database, &state.backup_dir)?;
+    update_transfer_record(&mut database, id, &input)
+}
+
+#[tauri::command]
 pub(crate) fn delete_transaction(
     id: i64,
     state: State<'_, AppState>,

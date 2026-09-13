@@ -22,6 +22,7 @@ export interface LedgerBackend {
   removeTransaction(id: number): Promise<TransactionMutationResult>
   editTransaction(id: number, input: TransactionInput): Promise<TransactionMutationResult>
   addTransfer(input: TransferInput): Promise<TransactionMutationResult>
+  editTransfer(id: number, input: TransferInput): Promise<TransactionMutationResult>
   checkBalanceIntegrity(repair: boolean): Promise<BalanceCheck>
   updateSettings(next: Settings): Promise<Settings>
   clearAll(): Promise<LedgerSnapshot>

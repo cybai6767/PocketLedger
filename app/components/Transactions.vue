@@ -2,7 +2,7 @@
 import { ref, reactive, computed, watch, watchEffect } from 'vue'
 import { CURRENCY_SYMBOLS, type Transaction, type TxType } from '~~/shared/types/ledger'
 
-const { state, busy, addTransaction, editTransaction, addTransfer, removeTransaction } = useLedger()
+const { state, busy, addTransaction, editTransaction, addTransfer, editTransfer, removeTransaction } = useLedger()
 const { locale, t } = useLocale()
 
 function today() {
@@ -23,6 +23,7 @@ const form = reactive({
 })
 const mode = ref<'transaction' | 'transfer'>('transaction')
 const editingId = ref<number | null>(null)
+const editingTransferId = ref<number | null>(null)
 const transferForm = reactive({
   date: today(),
   fromAccountId: 0,
@@ -84,8 +85,26 @@ async function save() {
 }
 
 function startEdit(transaction: Transaction) {
-  if (transaction.transferId) return
+  if (transaction.transferId) {
+    const pair = state.transactions.filter(item => item.transferId === transaction.transferId)
+    const expense = pair.find(item => item.type === 'expense')
+    const income = pair.find(item => item.type === 'income')
+    if (!expense || !income) return
+    mode.value = 'transfer'
+    editingId.value = null
+    editingTransferId.value = transaction.id
+    Object.assign(transferForm, {
+      date: expense.date,
+      fromAccountId: expense.accountId,
+      toAccountId: income.accountId,
+      amount: expense.amount,
+      note: expense.note ?? '',
+    })
+    txPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
   mode.value = 'transaction'
+  editingTransferId.value = null
   editingId.value = transaction.id
   Object.assign(form, {
     date: transaction.date,
@@ -100,13 +119,23 @@ function startEdit(transaction: Transaction) {
 
 function cancelEdit() {
   editingId.value = null
+  editingTransferId.value = null
   Object.assign(form, { date: today(), type: 'expense', amount: 0, category: t('transaction.defaultCategory'), note: '' })
+  Object.assign(transferForm, { date: today(), amount: 0, note: '' })
+}
+
+function switchMode(next: 'transaction' | 'transfer') {
+  cancelEdit()
+  mode.value = next
 }
 
 async function saveTransfer() {
   if (!transferForm.fromAccountId || !transferForm.toAccountId || transferForm.amount <= 0) return
-  const saved = await addTransfer({ ...transferForm })
+  const saved = editingTransferId.value
+    ? await editTransfer(editingTransferId.value, { ...transferForm })
+    : await addTransfer({ ...transferForm })
   if (saved) {
+    editingTransferId.value = null
     transferForm.amount = 0
     transferForm.note = ''
   }
@@ -135,12 +164,12 @@ const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigit
 <template>
   <div ref="txPanel">
     <div class="mode-tabs">
-      <button :class="{ active: mode === 'transaction' }" @click="mode = 'transaction'">{{ t('transaction.record') }}</button>
-      <button :class="{ active: mode === 'transfer' }" @click="mode = 'transfer'; editingId = null">{{ t('transaction.transfer') }}</button>
+      <button :class="{ active: mode === 'transaction' }" @click="switchMode('transaction')">{{ t('transaction.record') }}</button>
+      <button :class="{ active: mode === 'transfer' }" @click="switchMode('transfer')">{{ t('transaction.transfer') }}</button>
     </div>
 
     <section class="panel">
-      <h3>{{ mode === 'transfer' ? t('transaction.transfer') : editingId ? t('transaction.edit') : t('transaction.record') }}</h3>
+      <h3>{{ mode === 'transfer' ? (editingTransferId ? t('transaction.editTransfer') : t('transaction.transfer')) : editingId ? t('transaction.edit') : t('transaction.record') }}</h3>
       <div v-if="mode === 'transaction'" class="form-grid">
         <label>{{ t('transaction.date') }}
           <input type="date" v-model="form.date" class="nav-input" @keydown.right="moveFocus(1)" />
@@ -200,8 +229,8 @@ const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigit
           :disabled="busy || !state.accounts.length"
           @click="save"
         >{{ editingId ? t('transaction.saveEdit') : t('transaction.save') }}</button>
-        <button v-else class="primary save-btn" :disabled="busy || state.accounts.length < 2" @click="saveTransfer">{{ t('transaction.confirmTransfer') }}</button>
-        <button v-if="editingId" class="ghost" @click="cancelEdit">{{ t('transaction.cancelEdit') }}</button>
+        <button v-else class="primary save-btn" :disabled="busy || state.accounts.length < 2" @click="saveTransfer">{{ editingTransferId ? t('transaction.saveTransferEdit') : t('transaction.confirmTransfer') }}</button>
+        <button v-if="editingId || editingTransferId" class="ghost" @click="cancelEdit">{{ t('transaction.cancelEdit') }}</button>
       </div>
       <p v-if="mode === 'transfer'" class="form-tip">{{ t('transaction.transferTip') }}</p>
     </section>
@@ -213,7 +242,7 @@ const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigit
         <div class="filters">
           <select v-model="filterAcc">
             <option value="all">{{ t('transaction.allAccounts') }}</option>
-            <option v-for="a in state.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
+            <option v-for="a in state.accounts" :key="a.id" :value="String(a.id)">{{ a.name }}</option>
           </select>
           <input v-model="searchQuery" :placeholder="t('transaction.search')" class="search-box" />
         </div>
@@ -222,19 +251,20 @@ const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigit
       <div class="table-wrap">
         <table v-if="filteredList.length">
           <thead>
-            <tr><th>{{ t('transaction.date') }}</th><th>{{ t('transaction.category') }}</th><th>{{ t('transaction.account') }}</th><th>{{ t('transaction.amount') }}</th><th>{{ t('common.actions') }}</th></tr>
+            <tr><th>{{ t('transaction.date') }}</th><th>{{ t('transaction.category') }}</th><th>{{ t('transaction.note') }}</th><th>{{ t('transaction.account') }}</th><th>{{ t('transaction.amount') }}</th><th>{{ t('common.actions') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="transaction in filteredList" :key="transaction.id">
               <td>{{ transaction.date }}</td>
               <td>{{ transaction.transferId ? t('transaction.transfer') : transaction.category }}</td>
+              <td class="transaction-note" :title="transaction.note">{{ transaction.note || '—' }}</td>
               <td>{{ getAccName(transaction.accountId) }}</td>
               <td :class="transaction.type">
                 {{ transaction.type === 'income' ? '+' : '-' }}{{ CURRENCY_SYMBOLS[transaction.currency || 'CNY'] }}{{ fmt(transaction.amount) }}
               </td>
               <td>
                 <div class="row-actions">
-                  <button v-if="!transaction.transferId" class="link-edit" @click="startEdit(transaction)">{{ t('common.edit') }}</button>
+                  <button class="link-edit" @click="startEdit(transaction)">{{ t('common.edit') }}</button>
                   <button class="link-danger" @click="askRemove(transaction)">{{ t('common.delete') }}</button>
                 </div>
               </td>
@@ -266,10 +296,11 @@ input, select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(
 .search-box { width: 180px; }
 
 .table-wrap { max-width: 100%; max-height: 400px; overflow: auto; -webkit-overflow-scrolling: touch; }
-table { width: 100%; min-width: 620px; border-collapse: collapse; }
+table { width: 100%; min-width: 760px; border-collapse: collapse; }
 th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--border); }
 .income { color: #16a34a; font-weight: 600; }
 .expense { color: #dc2626; font-weight: 600; }
+.transaction-note { max-width: 220px; white-space: normal; overflow-wrap: anywhere; color: var(--muted); }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
 .link-danger { background: none; border: 1px solid #dc2626; color: #dc2626; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
 .link-edit { background: none; border: 1px solid var(--accent); color: var(--accent); padding: 4px 8px; border-radius: 4px; cursor: pointer; }

@@ -49,6 +49,7 @@ pub fn run() {
             commands::create_transaction,
             commands::update_transaction,
             commands::create_transfer,
+            commands::update_transfer,
             commands::delete_transaction,
             commands::check_balances,
             commands::repair_balances,

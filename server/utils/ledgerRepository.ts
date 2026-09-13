@@ -388,6 +388,64 @@ export function createTransfer(
   })()
 }
 
+export function updateTransfer(
+  database: LedgerDatabase,
+  id: number,
+  input: TransferInput,
+): TransactionMutationResult {
+  saveAutomaticBackup(database)
+  return database.transaction(() => {
+    if (input.fromAccountId === input.toAccountId) {
+      throw createError({ statusCode: 400, message: '转出账户和转入账户不能相同' })
+    }
+    const selected = database.prepare(`
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      FROM transactions WHERE id = ?
+    `).get(id) as TransactionRow | undefined
+    if (!selected) throw createError({ statusCode: 404, message: '交易不存在' })
+    if (!selected.transfer_id) throw createError({ statusCode: 409, message: '这条流水不是账户转账' })
+
+    const previous = database.prepare(`
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      FROM transactions WHERE transfer_id = ? ORDER BY id
+    `).all(selected.transfer_id) as TransactionRow[]
+    const expense = previous.find(record => record.type === 'expense')
+    const income = previous.find(record => record.type === 'income')
+    if (previous.length !== 2 || !expense || !income) {
+      throw createError({ statusCode: 409, message: '转账的两条关联流水不完整' })
+    }
+
+    const from = getAccount(database, input.fromAccountId)
+    const to = getAccount(database, input.toAccountId)
+    if (from.currency !== to.currency) {
+      throw createError({ statusCode: 409, message: '转账只支持币种相同的两个账户' })
+    }
+    const amount = amountForStorage(input.amount)
+    const note = input.note || null
+    const update = database.prepare(`
+      UPDATE transactions
+      SET account_id = ?, date = ?, amount = ?, currency = ?, category = '转账', note = ?
+      WHERE id = ?
+    `)
+    update.run(from.id, input.date, amount, from.currency, note, expense.id)
+    update.run(to.id, input.date, amount, to.currency, note, income.id)
+
+    const accountIds = [...new Set([
+      ...previous.map(record => record.account_id),
+      input.fromAccountId,
+      input.toAccountId,
+    ])]
+    const rows = database.prepare(`
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      FROM transactions WHERE transfer_id = ? ORDER BY id
+    `).all(selected.transfer_id) as TransactionRow[]
+    return {
+      transactions: rows.map(mapTransaction),
+      accounts: accountIds.map(accountId => recalculateAccount(database, accountId)),
+    }
+  })()
+}
+
 export function deleteTransaction(
   database: LedgerDatabase,
   id: number,

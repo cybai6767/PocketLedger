@@ -499,6 +499,86 @@ pub(crate) fn create_transfer_record(
     })
 }
 
+pub(crate) fn update_transfer_record(
+    database: &mut Connection,
+    id: i64,
+    input: &TransferInput,
+) -> Result<TransactionMutationResult, String> {
+    if id <= 0 {
+        return Err("ID 无效".to_string());
+    }
+    validate_transfer(input)?;
+    let transaction = database.transaction().map_err(database_error)?;
+    let selected = get_transaction(&transaction, id)?;
+    let transfer_id = selected
+        .transfer_id
+        .clone()
+        .ok_or_else(|| "这条流水不是账户转账".to_string())?;
+    let previous: Vec<_> = list_transactions(&transaction)?
+        .into_iter()
+        .filter(|record| record.transfer_id.as_deref() == Some(transfer_id.as_str()))
+        .collect();
+    let expense = previous
+        .iter()
+        .find(|record| record.r#type == "expense")
+        .ok_or_else(|| "转账的两条关联流水不完整".to_string())?;
+    let income = previous
+        .iter()
+        .find(|record| record.r#type == "income")
+        .ok_or_else(|| "转账的两条关联流水不完整".to_string())?;
+    if previous.len() != 2 {
+        return Err("转账的两条关联流水不完整".to_string());
+    }
+    let expense_id = expense.id;
+    let income_id = income.id;
+    let from = get_account(&transaction, input.from_account_id)?;
+    let to = get_account(&transaction, input.to_account_id)?;
+    if from.currency != to.currency {
+        return Err("转账只支持币种相同的两个账户".to_string());
+    }
+    let amount = decimal_to_storage(decimal_from_number(input.amount, "金额")?);
+    let note = input
+        .note
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    transaction
+        .execute(
+            "UPDATE transactions
+             SET account_id = ?1, date = ?2, amount = ?3, currency = ?4,
+                 category = '转账', note = ?5
+             WHERE id = ?6",
+            params![from.id, input.date, amount, from.currency, note, expense_id],
+        )
+        .map_err(database_error)?;
+    transaction
+        .execute(
+            "UPDATE transactions
+             SET account_id = ?1, date = ?2, amount = ?3, currency = ?4,
+                 category = '转账', note = ?5
+             WHERE id = ?6",
+            params![to.id, input.date, amount, to.currency, note, income_id],
+        )
+        .map_err(database_error)?;
+
+    let mut account_ids: HashSet<i64> = previous.iter().map(|record| record.account_id).collect();
+    account_ids.insert(from.id);
+    account_ids.insert(to.id);
+    let mut accounts = Vec::new();
+    for account_id in account_ids {
+        accounts.push(recalculate_account(&transaction, account_id)?);
+    }
+    let records = vec![
+        get_transaction(&transaction, expense_id)?,
+        get_transaction(&transaction, income_id)?,
+    ];
+    transaction.commit().map_err(database_error)?;
+    Ok(TransactionMutationResult {
+        transactions: records,
+        accounts,
+    })
+}
+
 pub(crate) fn delete_transaction_record(
     database: &mut Connection,
     id: i64,

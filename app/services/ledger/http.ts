@@ -29,6 +29,7 @@ export function createHttpLedgerBackend(request: HttpRequest): LedgerBackend {
     removeTransaction: (id) => request<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'DELETE' }),
     editTransaction: (id, input) => request<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'PUT', body: input }),
     addTransfer: (input) => request<TransactionMutationResult>('/api/transfers', { method: 'POST', body: input }),
+    editTransfer: (id, input) => request<TransactionMutationResult>(`/api/transfers/${id}`, { method: 'PUT', body: input }),
     checkBalanceIntegrity: (repair) => request<BalanceCheck>('/api/ledger/integrity', { method: repair ? 'POST' : 'GET' }),
     updateSettings: (next) => request<Settings>('/api/settings', { method: 'PUT', body: next }),
     clearAll: () => request<LedgerSnapshot>('/api/ledger', { method: 'DELETE' }),

@@ -27,6 +27,7 @@ import {
   reorderAccounts,
   readLatestAutomaticBackup,
   restoreLedger,
+  updateTransfer,
   updateTransaction,
   updateAccount,
   updateSettings,
@@ -127,6 +128,14 @@ describe('ledger repository', () => {
     expect(transfer.transactions).toHaveLength(2)
     expect(new Set(transfer.transactions.map(item => item.transferId)).size).toBe(1)
     expect(transfer.accounts.map(account => account.balance)).toEqual([70, 50])
+    const updated = updateTransfer(database, transfer.transactions[0]!.id, {
+      date: '2026-09-01', fromAccountId: from.id, toAccountId: to.id, amount: 45, note: '补充储蓄',
+    })
+    expect(updated.transactions).toHaveLength(2)
+    expect(updated.transactions.every(record => record.date === '2026-09-01')).toBe(true)
+    expect(updated.transactions.every(record => record.amount === 45)).toBe(true)
+    expect(updated.transactions.every(record => record.note === '补充储蓄')).toBe(true)
+    expect(getSnapshot(database).accounts.map(account => account.balance)).toEqual([55, 65])
     expect(deleteTransaction(database, transfer.transactions[0]!.id).transactions).toHaveLength(2)
     expect(getSnapshot(database).transactions).toHaveLength(0)
     expect(getSnapshot(database).accounts.map(account => account.balance)).toEqual([100, 20])

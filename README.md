@@ -26,7 +26,7 @@ Track accounts, record expenses, and explore your finances—with offline storag
 
 - **Accounts:** cash, bank, credit, investment, debt, wallet, and other accounts; editing and ordering.
 - **Transactions:** add, edit, delete, search, and filter income and expenses by account.
-- **Transfers:** move money between same-currency accounts without counting it as income or expenses.
+- **Transfers:** create, edit, and delete transfers between same-currency accounts without counting them as income or expenses.
 - **Reports:** net worth, monthly totals, spending categories, and trends. Supports CNY, HKD, USD, EUR, USDT, and BTC.
 - **Data protection:** automatic pre-change snapshots, balance checks and repairs, versioned migrations, and transactional JSON restore.
 - **Preferences:** switch the complete interface and exports between English and Simplified Chinese, plus light/dark themes, amount masking, and a preferred base currency.

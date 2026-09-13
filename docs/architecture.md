@@ -86,7 +86,8 @@ There is no automatic sync, merge restore, or legacy MySQL importer. The previou
 | PUT | `/api/accounts/reorder` | Save ordering |
 | GET / POST | `/api/transactions` | List / create transactions |
 | PUT / DELETE | `/api/transactions/:id` | Edit / remove transaction |
-| POST | `/api/transfers` | Same-currency transfer |
+| POST | `/api/transfers` | Create a same-currency transfer |
+| PUT | `/api/transfers/:id` | Atomically update both sides of a transfer |
 | PUT | `/api/settings` | Save preferences |
 
 There is no built-in authentication or per-user isolation. Tauri production CSP limits external connections; network integrations require reviewing that configuration.

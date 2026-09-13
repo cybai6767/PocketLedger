@@ -187,6 +187,18 @@ export function useLedger() {
     return true
   }
 
+  async function editTransfer(id: number, input: TransferInput): Promise<boolean> {
+    const result = await mutate(() => backend.editTransfer(id, input))
+    if (!result) return false
+    for (const updated of result.transactions) {
+      const index = state.value.transactions.findIndex(transaction => transaction.id === updated.id)
+      if (index >= 0) state.value.transactions[index] = updated
+    }
+    result.accounts.forEach(replaceAccount)
+    state.value.transactions.sort((left, right) => right.date.localeCompare(left.date) || right.id - left.id)
+    return true
+  }
+
   async function checkBalanceIntegrity(repair = false): Promise<BalanceCheck | undefined> {
     const result = await mutate(() => backend.checkBalanceIntegrity(repair))
     if (result?.repaired) hydrate(await loadSnapshot())
@@ -252,6 +264,7 @@ export function useLedger() {
     addTransaction,
     editTransaction,
     addTransfer,
+    editTransfer,
     removeTransaction,
     checkBalanceIntegrity,
     updateSettings,

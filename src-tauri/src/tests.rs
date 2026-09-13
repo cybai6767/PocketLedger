@@ -325,6 +325,32 @@ fn transfers_and_deletes_both_sides_together() {
     assert_eq!(transfer.transactions.len(), 2);
     assert_eq!(transfer.accounts[0].balance, 70.0);
     assert_eq!(transfer.accounts[1].balance, 50.0);
+    let updated = update_transfer_record(
+        &mut database,
+        transfer.transactions[0].id,
+        &TransferInput {
+            date: "2026-09-01".to_string(),
+            from_account_id: from.id,
+            to_account_id: to.id,
+            amount: 45.0,
+            note: Some("补充储蓄".to_string()),
+        },
+    )
+    .expect("update transfer");
+    assert_eq!(updated.transactions.len(), 2);
+    assert!(updated
+        .transactions
+        .iter()
+        .all(|record| record.date == "2026-09-01"
+            && record.amount == 45.0
+            && record.note.as_deref() == Some("补充储蓄")));
+    let balances: Vec<f64> = snapshot(&database)
+        .expect("snapshot after transfer update")
+        .accounts
+        .iter()
+        .map(|account| account.balance)
+        .collect();
+    assert_eq!(balances, vec![55.0, 65.0]);
     assert!(delete_account_record(&database, from.id).is_err());
 
     let deleted = delete_transaction_record(&mut database, transfer.transactions[0].id)

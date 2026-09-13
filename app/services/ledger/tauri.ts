@@ -28,6 +28,7 @@ export function createTauriLedgerBackend(invoke: Invoke = nativeInvoke): LedgerB
     removeTransaction: (id) => invoke<TransactionMutationResult>('delete_transaction', { id }),
     editTransaction: (id, input) => invoke<TransactionMutationResult>('update_transaction', { id, input }),
     addTransfer: (input) => invoke<TransactionMutationResult>('create_transfer', { input }),
+    editTransfer: (id, input) => invoke<TransactionMutationResult>('update_transfer', { id, input }),
     checkBalanceIntegrity: (repair) => invoke<BalanceCheck>(repair ? 'repair_balances' : 'check_balances'),
     updateSettings: (next) => invoke<Settings>('update_settings', { settings: next }),
     clearAll: () => invoke<LedgerSnapshot>('clear_ledger'),
