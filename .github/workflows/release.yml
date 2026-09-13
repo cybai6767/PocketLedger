@@ -39,7 +39,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Copy-Item -LiteralPath $installer.FullName -Destination "dist/PocketLedger-${{ github.ref_name }}-windows-x64-setup.exe"
+          Copy-Item -LiteralPath $installer.FullName -Destination "dist/口袋账本${{ github.ref_name }}.exe"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v6
@@ -104,7 +104,7 @@ jobs:
           test -n "$apk"
           "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk"
           mkdir -p dist
-          cp "$apk" "dist/PocketLedger-${GITHUB_REF_NAME}-android-arm64-release.apk"
+          cp "$apk" "dist/口袋账本${GITHUB_REF_NAME}.apk"
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v6
@@ -129,7 +129,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          name: "PocketLedger ${{ github.ref_name }}"
+          name: "口袋账本 ${{ github.ref_name }}"
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false

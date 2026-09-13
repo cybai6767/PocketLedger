@@ -39,7 +39,7 @@ Track accounts, record expenses, and explore your finances—with offline storag
 | Android ARM64 | Download the release `.apk` from [Releases](https://github.com/bcielai321/PocketLedger/releases/latest). | Your device's application data directory |
 | Web / self-hosted | Use Node.js or Docker below. | SQLite on your server |
 
-Existing releases may still carry the previous name, **我的记账本 / accounting-tool**. The current source uses PocketLedger; published installers are not replaced by a documentation update.
+The installed application and release files use the Chinese product name **口袋账本**. The project and repository continue to use the international name **PocketLedger**.
 
 ## Quick start
 

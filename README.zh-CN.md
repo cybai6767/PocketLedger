@@ -39,7 +39,7 @@
 | Android ARM64 | 从 [Releases](https://github.com/bcielai321/PocketLedger/releases/latest) 下载正式版 `.apk`。 | 手机应用数据目录 |
 | Web / 自部署 | 使用下面的 Node.js 或 Docker 方式启动。 | 服务器 SQLite |
 
-已有发布包可能仍显示旧名称“我的记账本 / accounting-tool”。当前源码已改名为 PocketLedger，文档更新不会替换已经发布的安装包。
+安装后的应用及发布文件使用中文名称“口袋账本”，项目和仓库继续使用英文名称 PocketLedger。
 
 ## 快速开始
 
