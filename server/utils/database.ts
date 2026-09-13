@@ -81,6 +81,11 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    sql: `ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'zh-CN'
+      CHECK (language IN ('zh-CN', 'en'));`,
+  },
 ]
 
 export function getLedgerSchemaVersion(database: LedgerDatabase): number {

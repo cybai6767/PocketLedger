@@ -23,7 +23,7 @@ const snapshot: LedgerSnapshot = {
       note: '午餐',
     },
   ],
-  settings: { baseCurrency: 'CNY', masked: false, theme: 'light' },
+  settings: { baseCurrency: 'CNY', masked: false, theme: 'light', language: 'zh-CN' },
 }
 
 const exportedAt = new Date('2026-08-30T02:03:04.000Z')
@@ -37,6 +37,13 @@ describe('ledger backup exports', () => {
     expect(preview.accountCount).toBe(1)
     expect(preview.transactionCount).toBe(1)
     expect(preview.backup.data).toEqual(snapshot)
+  })
+
+  it('defaults old JSON backups without a language field to Simplified Chinese', () => {
+    const value = JSON.parse(createLedgerJson(snapshot, exportedAt))
+    delete value.data.settings.language
+
+    expect(parseLedgerJson(JSON.stringify(value)).backup.data.settings.language).toBe('zh-CN')
   })
 
   it('rejects backups with broken account references before restoring', () => {
@@ -82,5 +89,23 @@ describe('ledger backup exports', () => {
     expect(workbook.getWorksheet('流水')?.getCell('D2').value).toBe('支出')
     expect(workbook.getWorksheet('流水')?.getCell('G2').value).toBe(12.34)
     expect(workbook.getWorksheet('设置')?.getCell('B2').value).toBe('CNY')
+  })
+
+  it('uses English labels in CSV and Excel when English is selected', { timeout: 15_000 }, async () => {
+    const englishSnapshot: LedgerSnapshot = {
+      ...snapshot,
+      settings: { ...snapshot.settings, language: 'en' },
+    }
+    const csv = createLedgerCsv(englishSnapshot, exportedAt)
+    expect(csv).toContain('"Record type"')
+    expect(csv).toContain('"Account"')
+    expect(csv).toContain('"Cash"')
+
+    const ExcelJS = (await import('exceljs')).default
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(Buffer.from(await createLedgerXlsx(englishSnapshot, exportedAt)))
+    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['About', 'Accounts', 'Transactions', 'Settings'])
+    expect(workbook.getWorksheet('Accounts')?.getCell('D2').value).toBe('Cash')
+    expect(workbook.getWorksheet('Transactions')?.getCell('D2').value).toBe('Expense')
   })
 })

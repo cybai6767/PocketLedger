@@ -13,7 +13,7 @@ pub(crate) fn clear_ledger_record(database: &mut Connection) -> Result<LedgerSna
         .map_err(database_error)?;
     transaction
         .execute(
-            "UPDATE settings SET base_currency = 'CNY', masked = 0, theme = 'light' WHERE id = 1",
+            "UPDATE settings SET base_currency = 'CNY', masked = 0, theme = 'light', language = 'zh-CN' WHERE id = 1",
             [],
         )
         .map_err(database_error)?;
@@ -148,13 +148,14 @@ pub(crate) fn get_transaction(database: &Connection, id: i64) -> Result<LedgerTr
 pub(crate) fn get_settings(database: &Connection) -> Result<Settings, String> {
     database
         .query_row(
-            "SELECT base_currency, masked, theme FROM settings WHERE id = 1",
+            "SELECT base_currency, masked, theme, language FROM settings WHERE id = 1",
             [],
             |row| {
                 Ok(Settings {
                     base_currency: row.get(0)?,
                     masked: row.get::<_, i64>(1)? != 0,
                     theme: row.get(2)?,
+                    language: row.get(3)?,
                 })
             },
         )
@@ -598,11 +599,12 @@ pub(crate) fn update_settings_record(
     validate_settings(settings)?;
     database
         .execute(
-            "UPDATE settings SET base_currency = ?1, masked = ?2, theme = ?3 WHERE id = 1",
+            "UPDATE settings SET base_currency = ?1, masked = ?2, theme = ?3, language = ?4 WHERE id = 1",
             params![
                 settings.base_currency,
                 settings.masked as i64,
-                settings.theme
+                settings.theme,
+                settings.language
             ],
         )
         .map_err(database_error)?;
@@ -681,11 +683,12 @@ pub(crate) fn restore_ledger_record(
     }
     transaction
         .execute(
-            "UPDATE settings SET base_currency = ?1, masked = ?2, theme = ?3 WHERE id = 1",
+            "UPDATE settings SET base_currency = ?1, masked = ?2, theme = ?3, language = ?4 WHERE id = 1",
             params![
                 backup.data.settings.base_currency,
                 backup.data.settings.masked as i64,
-                backup.data.settings.theme
+                backup.data.settings.theme,
+                backup.data.settings.language
             ],
         )
         .map_err(database_error)?;

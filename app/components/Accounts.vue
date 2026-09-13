@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
-  ACCOUNT_TYPE_LABELS, CURRENCY_LABELS, CURRENCY_SYMBOLS,
+  ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_LABELS_EN, CURRENCY_LABELS, CURRENCY_SYMBOLS,
   type AccountType, type Currency,
 } from '~~/shared/types/ledger'
 
@@ -22,6 +22,8 @@ const {
   removeAccount,
   reorderAccounts,
 } = useLedger()
+const { locale, t } = useLocale()
+const accountTypeLabels = computed(() => locale.value === 'en' ? ACCOUNT_TYPE_LABELS_EN : ACCOUNT_TYPE_LABELS)
 const dragIndex = ref<number | null>(null)
 // 删除确认弹窗
 const showConfirm = ref(false)
@@ -129,12 +131,12 @@ function cancel() {
 <template>
   <section class="panel">
     <div class="row">
-      <h3>账户列表</h3>
+      <h3>{{ t('account.list') }}</h3>
     </div>
     <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>名称</th><th>类型</th><th>币种</th><th>折算余额</th><th>操作</th></tr>
+        <tr><th>{{ t('account.name') }}</th><th>{{ t('account.type') }}</th><th>{{ t('account.currency') }}</th><th>{{ t('account.convertedBalance') }}</th><th>{{ t('common.actions') }}</th></tr>
       </thead>
       <tbody>
         <tr 
@@ -150,13 +152,13 @@ function cancel() {
           <td>
             <span class="drag-handle">⠿</span> {{ a.name }}
           </td>
-          <td>{{ ACCOUNT_TYPE_LABELS[a.type] }}</td>
+          <td>{{ accountTypeLabels[a.type] }}</td>
           <td>{{ a.currency }}</td>
           <td>{{ fmt(toBase(a.balance, a.currency)) }}</td>
           <td>
             <div class="op-actions">
-              <button class="op-btn edit" @click="startEdit(a.id)">编辑</button>
-              <button class="op-btn del" @click="askRemove(a.id)">删除</button>
+              <button class="op-btn edit" @click="startEdit(a.id)">{{ t('common.edit') }}</button>
+              <button class="op-btn del" @click="askRemove(a.id)">{{ t('common.delete') }}</button>
             </div>
           </td> 
         </tr>
@@ -166,55 +168,55 @@ function cancel() {
   </section>
 
   <section class="panel"  ref="formPanel">
-    <h3>{{ editingId ? '编辑账户' : '新增账户' }}</h3>
+    <h3>{{ editingId ? t('account.edit') : t('account.add') }}</h3>
     <div class="form">
-      <label>名称
+      <label>{{ t('account.name') }}
         <input v-model="form.name" class="nav-input" 
         @keydown.right="moveFocus(1)"
         @keydown.enter="handleSave" />
         <div v-if="showAlert" class="alert-mask" @click.self="closeAlert">
             <div class="alert-box">
-              <p class="alert-text">请填写有效信息</p>
-              <button class="alert-btn" @click="closeAlert">知道了</button>
+              <p class="alert-text">{{ t('account.invalid') }}</p>
+              <button class="alert-btn" @click="closeAlert">{{ t('common.gotIt') }}</button>
             </div>
         </div>
       </label>
-      <label>类型
+      <label>{{ t('account.type') }}
         <select v-model="form.type" class="nav-input" 
               @keydown.left.prevent="moveFocus(0)"
               @keydown.right.prevent="moveFocus(2)">
-            <option v-for="(l, k) in ACCOUNT_TYPE_LABELS" :key="k" :value="k">{{ l }}
+            <option v-for="(l, k) in accountTypeLabels" :key="k" :value="k">{{ l }}
           </option>
         </select>
       </label>
-      <label>币种
+      <label>{{ t('account.currency') }}
         <select v-model="form.currency" class="nav-input" 
         @keydown.left.prevent="moveFocus(1)" 
         @keydown.right.prevent="moveFocus(3)">
           <option v-for="(l, k) in CURRENCY_LABELS" :key="k" :value="k">{{ l }}</option>
         </select>
       </label>
-      <label>当前余额
+      <label>{{ t('account.balance') }}
         <input type="number" v-model.number="form.balance" class="nav-input"
         @keydown.left="moveFocus(2)" 
         @keydown.enter="submit"/>
       </label>
     </div>
     <div class="actions">
-      <button class="primary" :disabled="busy" @click="handleSave">保存账户</button>
-      <button class="ghost" @click="cancel">取消 / 清空</button>
+      <button class="primary" :disabled="busy" @click="handleSave">{{ t('account.save') }}</button>
+      <button class="ghost" @click="cancel">{{ t('common.cancelClear') }}</button>
     </div>
   </section>
   <div v-if="showConfirm" class="modal-mask" @click.self="closeConfirm">
   <div class="modal">
-    <h2 class="modal-title">您确定要删除吗？</h2>
+    <h2 class="modal-title">{{ t('account.confirmDelete') }}</h2>
     <label class="modal-check">
       <input type="checkbox" v-model="dontAskNext" />
-      <span>此次不再提示</span>
+      <span>{{ t('account.skipConfirm') }}</span>
     </label>
     <div class="modal-actions">
-      <button class="op-btn" @click="closeConfirm">取消</button>
-      <button class="op-btn del" @click="confirmRemove">删除</button>
+      <button class="op-btn" @click="closeConfirm">{{ t('common.cancel') }}</button>
+      <button class="op-btn del" @click="confirmRemove">{{ t('common.delete') }}</button>
     </div>
   </div>
 </div>

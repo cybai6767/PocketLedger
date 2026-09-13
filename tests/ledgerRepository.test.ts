@@ -159,12 +159,12 @@ describe('ledger repository', () => {
     createAccount(database, {
       name: '钱包', type: 'wallet', currency: 'USD', balance: 20,
     })
-    updateSettings(database, { baseCurrency: 'USD', masked: true, theme: 'dark' })
+    updateSettings(database, { baseCurrency: 'USD', masked: true, theme: 'dark', language: 'en' })
 
     const cleared = clearLedger(database)
     expect(cleared.accounts).toEqual([])
     expect(cleared.transactions).toEqual([])
-    expect(cleared.settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light' })
+    expect(cleared.settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light', language: 'zh-CN' })
   })
 
   it('migrates a legacy database without losing ledger data', () => {
@@ -199,6 +199,7 @@ describe('ledger repository', () => {
 
     expect(getLedgerSchemaVersion(database)).toBe(LEDGER_SCHEMA_VERSION)
     expect(getSnapshot(database).accounts[0]?.balance).toBe(87.66)
+    expect(getSnapshot(database).settings.language).toBe('zh-CN')
     expect(database.prepare('SELECT opening_balance FROM accounts WHERE id = 1').pluck().get()).toBe('100')
   })
 
@@ -229,7 +230,7 @@ describe('ledger repository', () => {
             note: '恢复测试',
           },
         ],
-        settings: { baseCurrency: 'USD', masked: true, theme: 'dark' },
+        settings: { baseCurrency: 'USD', masked: true, theme: 'dark', language: 'en' },
       },
     }
 
@@ -254,13 +255,13 @@ describe('ledger repository', () => {
           { id: 2, name: '重复二', type: 'cash', currency: 'CNY', balance: 2, sortOrder: 1 },
         ],
         transactions: [],
-        settings: { baseCurrency: 'USD', masked: true, theme: 'dark' },
+        settings: { baseCurrency: 'USD', masked: true, theme: 'dark', language: 'en' },
       },
     }
 
     expect(() => restoreLedger(database, invalidBackup)).toThrow()
     expect(getSnapshot(database).accounts).toEqual([original])
-    expect(getSnapshot(database).settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light' })
+    expect(getSnapshot(database).settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light', language: 'zh-CN' })
   })
 
   it('keeps the newest seven backups when the clock is frozen or moves backwards', () => {

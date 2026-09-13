@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watchEffect } from 'vue'
+import { ref, reactive, computed, watch, watchEffect } from 'vue'
 import { CURRENCY_SYMBOLS, type Transaction, type TxType } from '~~/shared/types/ledger'
 
 const { state, busy, addTransaction, editTransaction, addTransfer, removeTransaction } = useLedger()
+const { locale, t } = useLocale()
 
 function today() {
   const now = new Date()
@@ -62,6 +63,10 @@ watchEffect(() => {
   }
 })
 
+watch(locale, () => {
+  if (form.category === '餐饮' || form.category === 'Food') form.category = t('transaction.defaultCategory')
+})
+
 async function save() {
   const acc = state.accounts.find(a => a.id === form.accountId)
   if (!acc || form.amount <= 0) return
@@ -95,7 +100,7 @@ function startEdit(transaction: Transaction) {
 
 function cancelEdit() {
   editingId.value = null
-  Object.assign(form, { date: today(), type: 'expense', amount: 0, category: '餐饮', note: '' })
+  Object.assign(form, { date: today(), type: 'expense', amount: 0, category: t('transaction.defaultCategory'), note: '' })
 }
 
 async function saveTransfer() {
@@ -109,8 +114,8 @@ async function saveTransfer() {
 
 function askRemove(transaction: Transaction) {
   const message = transaction.transferId
-    ? '删除这笔转账会同时删除转出和转入两条流水，确定继续吗？'
-    : '确定删除这条流水吗？'
+    ? t('transaction.deleteTransfer')
+    : t('transaction.deleteOne')
   if (confirm(message)) void removeTransaction(transaction.id)
 }
 
@@ -123,56 +128,56 @@ const filteredList = computed(() => {
   })
 })
 
-const getAccName = (id: number) => state.accounts.find(a => a.id === id)?.name || '未知账户'
-const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 })
+const getAccName = (id: number) => state.accounts.find(a => a.id === id)?.name || t('transaction.unknownAccount')
+const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigits: 2 })
 </script>
 
 <template>
   <div ref="txPanel">
     <div class="mode-tabs">
-      <button :class="{ active: mode === 'transaction' }" @click="mode = 'transaction'">记一笔</button>
-      <button :class="{ active: mode === 'transfer' }" @click="mode = 'transfer'; editingId = null">账户转账</button>
+      <button :class="{ active: mode === 'transaction' }" @click="mode = 'transaction'">{{ t('transaction.record') }}</button>
+      <button :class="{ active: mode === 'transfer' }" @click="mode = 'transfer'; editingId = null">{{ t('transaction.transfer') }}</button>
     </div>
 
     <section class="panel">
-      <h3>{{ mode === 'transfer' ? '账户转账' : editingId ? '修改流水' : '记一笔' }}</h3>
+      <h3>{{ mode === 'transfer' ? t('transaction.transfer') : editingId ? t('transaction.edit') : t('transaction.record') }}</h3>
       <div v-if="mode === 'transaction'" class="form-grid">
-        <label>日期
+        <label>{{ t('transaction.date') }}
           <input type="date" v-model="form.date" class="nav-input" @keydown.right="moveFocus(1)" />
         </label>
-        <label>类型
+        <label>{{ t('transaction.type') }}
           <select v-model="form.type" class="nav-input" @keydown.left.prevent="moveFocus(0)" @keydown.right.prevent="moveFocus(2)">
-            <option value="expense">支出</option>
-            <option value="income">收入</option>
+            <option value="expense">{{ t('transaction.expense') }}</option>
+            <option value="income">{{ t('transaction.income') }}</option>
           </select>
         </label>
-        <label>来源账户
+        <label>{{ t('transaction.source') }}
           <select v-model.number="form.accountId" class="nav-input" @keydown.left.prevent="moveFocus(1)" @keydown.right.prevent="moveFocus(3)">
             <option v-for="a in state.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </select>
         </label>
-        <label>金额
+        <label>{{ t('transaction.amount') }}
           <input type="number" v-model.number="form.amount" class="nav-input" placeholder="0.00"
                  @keydown.left="moveFocus(2)" @keydown.right="moveFocus(4)" @keydown.enter="save" />
         </label>
-        <label>分类
-          <input v-model="form.category" class="nav-input" placeholder="餐饮/交通等"
+        <label>{{ t('transaction.category') }}
+          <input v-model="form.category" class="nav-input" :placeholder="t('transaction.categoryPlaceholder')"
                  @keydown.left="moveFocus(3)" @keydown.enter="save" />
         </label>
-        <label>备注（可选）
-          <input v-model="form.note" class="nav-input" maxlength="200" placeholder="补充说明" @keydown.enter="save">
+        <label>{{ t('transaction.note') }}
+          <input v-model="form.note" class="nav-input" maxlength="200" :placeholder="t('transaction.notePlaceholder')" @keydown.enter="save">
         </label>
       </div>
       <div v-else class="form-grid transfer-grid">
-        <label>日期
+        <label>{{ t('transaction.date') }}
           <input v-model="transferForm.date" type="date">
         </label>
-        <label>转出账户
+        <label>{{ t('transaction.from') }}
           <select v-model.number="transferForm.fromAccountId">
             <option v-for="a in state.accounts" :key="a.id" :value="a.id">{{ a.name }}（{{ a.currency }}）</option>
           </select>
         </label>
-        <label>转入账户
+        <label>{{ t('transaction.to') }}
           <select v-model.number="transferForm.toAccountId">
             <option
               v-for="a in transferTargets"
@@ -181,11 +186,11 @@ const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 
             >{{ a.name }}（{{ a.currency }}）</option>
           </select>
         </label>
-        <label>转账金额
+        <label>{{ t('transaction.transferAmount') }}
           <input v-model.number="transferForm.amount" type="number" min="0" step="0.01" placeholder="0.00">
         </label>
-        <label class="transfer-note">备注（可选）
-          <input v-model="transferForm.note" maxlength="200" placeholder="例如：转入工资卡">
+        <label class="transfer-note">{{ t('transaction.note') }}
+          <input v-model="transferForm.note" maxlength="200" :placeholder="t('transaction.transferNote')">
         </label>
       </div>
       <div class="form-actions">
@@ -194,49 +199,49 @@ const fmt = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 2 
           class="primary save-btn"
           :disabled="busy || !state.accounts.length"
           @click="save"
-        >{{ editingId ? '保存修改' : '保存' }}</button>
-        <button v-else class="primary save-btn" :disabled="busy || state.accounts.length < 2" @click="saveTransfer">确认转账</button>
-        <button v-if="editingId" class="ghost" @click="cancelEdit">取消修改</button>
+        >{{ editingId ? t('transaction.saveEdit') : t('transaction.save') }}</button>
+        <button v-else class="primary save-btn" :disabled="busy || state.accounts.length < 2" @click="saveTransfer">{{ t('transaction.confirmTransfer') }}</button>
+        <button v-if="editingId" class="ghost" @click="cancelEdit">{{ t('transaction.cancelEdit') }}</button>
       </div>
-      <p v-if="mode === 'transfer'" class="form-tip">转账会同时生成一条支出和一条收入；目前只支持相同币种账户。</p>
+      <p v-if="mode === 'transfer'" class="form-tip">{{ t('transaction.transferTip') }}</p>
     </section>
 
     <!-- 流水列表 -->
     <section class="panel">
       <div class="list-header">
-        <h3>流水</h3>
+        <h3>{{ t('transaction.list') }}</h3>
         <div class="filters">
           <select v-model="filterAcc">
-            <option value="all">全部账户</option>
+            <option value="all">{{ t('transaction.allAccounts') }}</option>
             <option v-for="a in state.accounts" :key="a.id" :value="a.id">{{ a.name }}</option>
           </select>
-          <input v-model="searchQuery" placeholder="搜索关键词..." class="search-box" />
+          <input v-model="searchQuery" :placeholder="t('transaction.search')" class="search-box" />
         </div>
       </div>
 
       <div class="table-wrap">
         <table v-if="filteredList.length">
           <thead>
-            <tr><th>日期</th><th>分类</th><th>账户</th><th>金额</th><th>操作</th></tr>
+            <tr><th>{{ t('transaction.date') }}</th><th>{{ t('transaction.category') }}</th><th>{{ t('transaction.account') }}</th><th>{{ t('transaction.amount') }}</th><th>{{ t('common.actions') }}</th></tr>
           </thead>
           <tbody>
-            <tr v-for="t in filteredList" :key="t.id">
-              <td>{{ t.date }}</td>
-              <td>{{ t.transferId ? '账户转账' : t.category }}</td>
-              <td>{{ getAccName(t.accountId) }}</td>
-              <td :class="t.type">
-                {{ t.type === 'income' ? '+' : '-' }}{{ CURRENCY_SYMBOLS[t.currency || 'CNY'] }}{{ fmt(t.amount) }}
+            <tr v-for="transaction in filteredList" :key="transaction.id">
+              <td>{{ transaction.date }}</td>
+              <td>{{ transaction.transferId ? t('transaction.transfer') : transaction.category }}</td>
+              <td>{{ getAccName(transaction.accountId) }}</td>
+              <td :class="transaction.type">
+                {{ transaction.type === 'income' ? '+' : '-' }}{{ CURRENCY_SYMBOLS[transaction.currency || 'CNY'] }}{{ fmt(transaction.amount) }}
               </td>
               <td>
                 <div class="row-actions">
-                  <button v-if="!t.transferId" class="link-edit" @click="startEdit(t)">修改</button>
-                  <button class="link-danger" @click="askRemove(t)">删除</button>
+                  <button v-if="!transaction.transferId" class="link-edit" @click="startEdit(transaction)">{{ t('common.edit') }}</button>
+                  <button class="link-danger" @click="askRemove(transaction)">{{ t('common.delete') }}</button>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-else class="empty">暂无更多交易记录</div>
+        <div v-else class="empty">{{ t('transaction.empty') }}</div>
       </div>
     </section>
   </div>

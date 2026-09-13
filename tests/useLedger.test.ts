@@ -39,3 +39,17 @@ it('does not add failed transactions and can recover on the next save', async ()
   expect(ledger.state.accounts[0]!.balance).toBe(80)
   expect(ledger.lastError.value).toBeNull()
 })
+
+it('switches language immediately and persists the complete settings object', async () => {
+  const { request, ledger } = setup()
+  request.mockResolvedValueOnce({ ...ledger.state.settings, language: 'en' })
+
+  const result = ledger.updateSettings({ language: 'en' })
+  expect(ledger.state.settings.language).toBe('en')
+  expect(await result).toBe(true)
+  expect(request).toHaveBeenCalledWith('/api/settings', expect.objectContaining({
+    method: 'PUT',
+    body: expect.objectContaining({ language: 'en' }),
+  }))
+  expect(ledger.state.settings.language).toBe('en')
+})

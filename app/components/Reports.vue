@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { CURRENCY_SYMBOLS } from '~~/shared/types/ledger'
 
 const { state, toBase } = useLedger()
+const { t } = useLocale()
 const sym = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
 const PAD_L = 48, PAD_R = 20, PAD_T = 20, PAD_B = 30
 const W = 640, H = 240
@@ -89,7 +90,7 @@ function linePath(values: number[]) {
 
 <template>
 <section class="panel">
-  <h3>12个月收支趋势 (基准)</h3>
+  <h3>{{ t('report.trend') }}</h3>
 
   <svg class="chart" viewBox="0 0 640 240" preserveAspectRatio="none">
     <!-- 横向网格线 + Y 轴刻度 -->
@@ -117,12 +118,12 @@ function linePath(values: number[]) {
   </svg>
 
   <div class="legend">
-    <span><i style="background:#dc2626"></i>支出</span>
-    <span><i style="background:#16a34a"></i>收入</span>
+    <span><i style="background:#dc2626"></i>{{ t('transaction.expense') }}</span>
+    <span><i style="background:#16a34a"></i>{{ t('transaction.income') }}</span>
   </div>
 </section>
 <section class="panel">
-  <h3>本月支出分类占比 (基准)</h3>
+  <h3>{{ t('report.categories') }}</h3>
 
   <ul v-if="categories.length" class="cats">
     <li v-for="c in categories" :key="c.cat">
@@ -134,7 +135,7 @@ function linePath(values: number[]) {
     </li>
   </ul>
 
-  <p v-else class="empty">暂无分类数据</p>
+  <p v-else class="empty">{{ t('report.empty') }}</p>
 </section>
 </template>
 

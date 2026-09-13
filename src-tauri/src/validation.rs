@@ -114,6 +114,9 @@ pub(crate) fn validate_settings(settings: &Settings) -> Result<(), String> {
     if settings.theme != "light" && settings.theme != "dark" {
         return Err("主题无效".to_string());
     }
+    if settings.language != "zh-CN" && settings.language != "en" {
+        return Err("界面语言无效".to_string());
+    }
     Ok(())
 }
 

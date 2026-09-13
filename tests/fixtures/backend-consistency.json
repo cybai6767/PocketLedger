@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "accounts": [
     { "name": "  现金钱包  ", "type": "wallet", "currency": "CNY", "balance": 100 },
     { "name": "美元账户", "type": "bank", "currency": "USD", "balance": 50 }
@@ -28,7 +28,7 @@
     }
   ],
   "deleteTransactionId": 1,
-  "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark" },
+  "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark", "language": "en" },
   "expected": {
     "accounts": [
       { "id": 2, "name": "美元储蓄", "type": "bank", "currency": "USD", "balance": 50.5, "sortOrder": 0 },
@@ -46,6 +46,6 @@
         "note": "午餐"
       }
     ],
-    "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark" }
+    "settings": { "baseCurrency": "USD", "masked": true, "theme": "dark", "language": "en" }
   }
 }

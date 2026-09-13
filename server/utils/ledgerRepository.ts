@@ -51,6 +51,7 @@ interface SettingsRow {
   base_currency: Currency
   masked: number
   theme: Settings['theme']
+  language: Settings['language']
 }
 
 function amountForStorage(value: number | string | Decimal): string {
@@ -157,12 +158,13 @@ export function listTransactions(database: LedgerDatabase): Transaction[] {
 
 export function getSettings(database: LedgerDatabase): Settings {
   const row = database.prepare(`
-    SELECT base_currency, masked, theme FROM settings WHERE id = 1
+    SELECT base_currency, masked, theme, language FROM settings WHERE id = 1
   `).get() as SettingsRow
   return {
     baseCurrency: row.base_currency,
     masked: Boolean(row.masked),
     theme: row.theme,
+    language: row.language,
   }
 }
 
@@ -439,8 +441,8 @@ export function checkBalances(database: LedgerDatabase, repair = false): Balance
 export function updateSettings(database: LedgerDatabase, settings: Settings): Settings {
   saveAutomaticBackup(database)
   database.prepare(`
-    UPDATE settings SET base_currency = ?, masked = ?, theme = ? WHERE id = 1
-  `).run(settings.baseCurrency, Number(settings.masked), settings.theme)
+    UPDATE settings SET base_currency = ?, masked = ?, theme = ?, language = ? WHERE id = 1
+  `).run(settings.baseCurrency, Number(settings.masked), settings.theme, settings.language)
   return getSettings(database)
 }
 
@@ -450,7 +452,7 @@ export function clearLedger(database: LedgerDatabase): LedgerSnapshot {
     database.prepare('DELETE FROM transactions').run()
     database.prepare('DELETE FROM accounts').run()
     database.prepare(`
-      UPDATE settings SET base_currency = 'CNY', masked = 0, theme = 'light' WHERE id = 1
+      UPDATE settings SET base_currency = 'CNY', masked = 0, theme = 'light', language = 'zh-CN' WHERE id = 1
     `).run()
   })()
   return getSnapshot(database)
@@ -505,11 +507,12 @@ export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup): L
     }
 
     database.prepare(`
-      UPDATE settings SET base_currency = ?, masked = ?, theme = ? WHERE id = 1
+      UPDATE settings SET base_currency = ?, masked = ?, theme = ?, language = ? WHERE id = 1
     `).run(
       backup.data.settings.baseCurrency,
       Number(backup.data.settings.masked),
       backup.data.settings.theme,
+      backup.data.settings.language,
     )
 
     database.prepare('DELETE FROM sqlite_sequence WHERE name IN (?, ?)')

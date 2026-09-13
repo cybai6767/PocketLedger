@@ -2,7 +2,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Mutex};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 2;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 3;
 pub(crate) const BACKUP_FORMAT_VERSION: i64 = 1;
 pub(crate) const BACKUP_FORMAT: &str = "accounting-tool-backup";
 
@@ -73,6 +73,12 @@ pub(crate) struct Settings {
     pub(crate) base_currency: String,
     pub(crate) masked: bool,
     pub(crate) theme: String,
+    #[serde(default = "default_language")]
+    pub(crate) language: String,
+}
+
+fn default_language() -> String {
+    "zh-CN".to_string()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

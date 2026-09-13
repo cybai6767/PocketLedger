@@ -29,7 +29,7 @@ Track accounts, record expenses, and explore your finances—with offline storag
 - **Transfers:** move money between same-currency accounts without counting it as income or expenses.
 - **Reports:** net worth, monthly totals, spending categories, and trends. Supports CNY, HKD, USD, EUR, USDT, and BTC.
 - **Data protection:** automatic pre-change snapshots, balance checks and repairs, versioned migrations, and transactional JSON restore.
-- **Preferences:** light/dark themes, amount masking, and a preferred base currency.
+- **Preferences:** switch the complete interface and exports between English and Simplified Chinese, plus light/dark themes, amount masking, and a preferred base currency.
 
 ## Get PocketLedger
 
@@ -68,7 +68,6 @@ The app listens on port `3000`. The `ledger-data` volume persists the database a
 - **Independent ledgers:** Web, desktop, and Android do not automatically sync. JSON restore replaces the target ledger rather than merging records.
 - **Demo exchange rates:** conversions use fixed built-in values, not live or historical rates.
 - **Import format:** JSON is supported for restore; CSV and Excel are export-only.
-- **Language:** the current application interface is Simplified Chinese. English documentation does not imply an English UI.
 - **Backup privacy:** exports contain actual amounts even when masked in the UI. Automatic snapshots retain seven files on the same storage as the database; they are not a separate cloud backup.
 
 ## For developers

@@ -89,6 +89,7 @@ fn matches_shared_mutation_contract() {
     assert_eq!(cleared.settings.base_currency, "CNY");
     assert!(!cleared.settings.masked);
     assert_eq!(cleared.settings.theme, "light");
+    assert_eq!(cleared.settings.language, "zh-CN");
 }
 
 #[derive(Deserialize)]
@@ -146,6 +147,26 @@ fn migrates_legacy_database_without_losing_data() {
         })
         .expect("read preserved account");
     assert_eq!(account_name, "迁移前账户");
+    assert_eq!(
+        snapshot(&database)
+            .expect("read migrated settings")
+            .settings
+            .language,
+        "zh-CN"
+    );
+}
+
+#[test]
+fn reads_legacy_backup_without_language_as_simplified_chinese() {
+    let source = r#"{
+        "format":"accounting-tool-backup",
+        "formatVersion":1,
+        "schemaVersion":2,
+        "exportedAt":"2026-08-30T02:03:04.000Z",
+        "data":{"accounts":[],"transactions":[],"settings":{"baseCurrency":"CNY","masked":false,"theme":"light"}}
+    }"#;
+    let backup: LedgerBackup = serde_json::from_str(source).expect("parse legacy backup");
+    assert_eq!(backup.data.settings.language, "zh-CN");
 }
 
 #[test]
@@ -400,6 +421,7 @@ fn restore_fixture() -> LedgerBackup {
                 base_currency: "USD".to_string(),
                 masked: true,
                 theme: "dark".to_string(),
+                language: "en".to_string(),
             },
         },
     }

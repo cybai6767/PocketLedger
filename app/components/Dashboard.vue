@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ACCOUNT_TYPE_LABELS, CURRENCY_SYMBOLS } from '~~/shared/types/ledger'
+import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_LABELS_EN, CURRENCY_SYMBOLS } from '~~/shared/types/ledger'
 
 const { state, setTab, toBase } = useLedger()
+const { locale, t } = useLocale()
 
 const sym = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
 const fmt = (n: number) =>
   state.settings.masked
     ? '****'
-    : sym.value + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : sym.value + n.toLocaleString(locale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // 资产结构（按类型占比）
 const structure = computed(() => {
@@ -16,7 +17,7 @@ const structure = computed(() => {
   for (const a of state.accounts) {
     const v = toBase(a.balance, a.currency)
     if (v <= 0) continue
-    const label = ACCOUNT_TYPE_LABELS[a.type]
+    const label = (locale.value === 'en' ? ACCOUNT_TYPE_LABELS_EN : ACCOUNT_TYPE_LABELS)[a.type]
     map.set(label, (map.get(label) ?? 0) + v)
   }
   const total = [...map.values()].reduce((s, v) => s + v, 0) || 1
@@ -45,18 +46,18 @@ function arc(start: number, end: number) {
 <template>
   <div class="grid">
     <section class="panel">
-      <h3>账户概览</h3>
+      <h3>{{ t('dashboard.accounts') }}</h3>
       <ul class="acc-list" v-if="state.accounts.length">
         <li v-for="a in state.accounts" :key="a.id">
           <span class="acc-name">{{ a.name }} ({{ a.currency }})</span>
           <span class="acc-balance">{{ fmt(toBase(a.balance, a.currency)) }}</span>
         </li>
       </ul>
-      <p v-else class="muted">暂无账户，点击「新建账户」添加</p>
+      <p v-else class="muted">{{ t('dashboard.emptyAccounts') }}</p>
     </section>
 
     <section class="panel">
-      <h3>资产结构</h3>
+      <h3>{{ t('dashboard.structure') }}</h3>
       <div class="structure" v-if="structure.length">
         <svg width="220" height="220" viewBox="0 0 140 140">
           <path v-for="s in structure" :key="s.label" :d="arc(s.start, s.end)" :fill="s.color" />
@@ -69,13 +70,13 @@ function arc(start: number, end: number) {
           </li>
         </ul>
       </div>
-      <p v-else class="muted">暂无资产数据</p>
+      <p v-else class="muted">{{ t('dashboard.emptyStructure') }}</p>
     </section>
   </div>
 
   <div class="overview">
-    <button class="primary" @click="setTab('accounts')">+ 新建账户</button>
-    <button class="accent" @click="setTab('transactions')">✍️ 记一笔</button>
+    <button class="primary" @click="setTab('accounts')">{{ t('dashboard.newAccount') }}</button>
+    <button class="accent" @click="setTab('transactions')">{{ t('dashboard.newTransaction') }}</button>
   </div>
 </template>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Currency, LedgerBackupPreview, Settings } from '~~/shared/types/ledger'
-import { CURRENCY_LABELS } from '~~/shared/types/ledger'
+import type { Currency, Language, LedgerBackupPreview, Settings } from '~~/shared/types/ledger'
+import { CURRENCY_LABELS, LEDGER_SCHEMA_VERSION } from '~~/shared/types/ledger'
 import {
   exportLedgerCsv,
   exportLedgerJson,
@@ -20,6 +20,7 @@ const {
   checkBalanceIntegrity,
   loadLatestAutomaticBackup,
 } = useLedger()
+const { locale, t } = useLocale()
 const isTauri = Boolean(useRuntimeConfig().public.tauri)
 const exporting = ref<'csv' | 'xlsx' | 'json' | null>(null)
 const exportMessage = ref('')
@@ -36,8 +37,12 @@ function changeCurrency(event: Event) {
   setPreference('baseCurrency', (event.target as HTMLSelectElement).value as Currency)
 }
 
+function changeLanguage(event: Event) {
+  setPreference('language', (event.target as HTMLSelectElement).value as Language)
+}
+
 async function confirmClear() {
-  if (confirm('确定要清空当前账本的全部账户和流水吗？此操作不可恢复。')) {
+  if (confirm(t('danger.confirm'))) {
     await clearAll()
   }
 }
@@ -52,10 +57,10 @@ async function exportBackup(format: 'csv' | 'xlsx' | 'json') {
       : format === 'json'
         ? await exportLedgerJson(state, isTauri)
         : await exportLedgerCsv(state, isTauri)
-    if (saved) exportMessage.value = `${format.toUpperCase()} 备份已保存`
+    if (saved) exportMessage.value = t('backup.saved', { format: format.toUpperCase() })
   }
   catch (error) {
-    setError(error instanceof Error ? `导出失败：${error.message}` : '导出失败，请稍后再试')
+    setError(error instanceof Error ? t('backup.exportFailed', { error: error.message }) : t('backup.exportFailedGeneric'))
   }
   finally {
     exporting.value = null
@@ -68,10 +73,10 @@ async function chooseBackup() {
   exportMessage.value = ''
   setError(null)
   try {
-    selectedBackup.value = await selectLedgerJson(isTauri)
+    selectedBackup.value = await selectLedgerJson(isTauri, locale.value)
   }
   catch (error) {
-    setError(error instanceof Error ? `读取备份失败：${error.message}` : '读取备份失败')
+    setError(error instanceof Error ? t('backup.readFailed', { error: error.message }) : t('backup.readFailedGeneric'))
   }
   finally {
     selectingBackup.value = false
@@ -86,13 +91,13 @@ async function chooseLatestAutomaticBackup() {
   try {
     const backup = await loadLatestAutomaticBackup()
     if (!backup) {
-      setError('还没有自动备份；完成一次数据修改后会自动生成')
+      setError(t('backup.none'))
       return
     }
-    selectedBackup.value = parseLedgerJson(JSON.stringify(backup))
+    selectedBackup.value = parseLedgerJson(JSON.stringify(backup), locale.value)
   }
   catch (error) {
-    setError(error instanceof Error ? `读取自动备份失败：${error.message}` : '读取自动备份失败')
+    setError(error instanceof Error ? t('backup.autoReadFailed', { error: error.message }) : t('backup.autoReadFailedGeneric'))
   }
   finally {
     selectingBackup.value = false
@@ -100,15 +105,16 @@ async function chooseLatestAutomaticBackup() {
 }
 
 function displayDate(value: string) {
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+  return new Date(value).toLocaleString(locale.value, { hour12: false })
 }
 
 async function confirmRestore() {
   const selected = selectedBackup.value
   if (!selected) return
-  const agreed = confirm(
-    `即将用备份中的 ${selected.accountCount} 个账户、${selected.transactionCount} 条流水覆盖当前账本。\n\n恢复前会要求保存当前账本的 JSON 备份。是否继续？`,
-  )
+  const agreed = confirm(t('backup.confirm', {
+    accounts: selected.accountCount,
+    transactions: selected.transactionCount,
+  }))
   if (!agreed) return
 
   restoring.value = true
@@ -117,17 +123,20 @@ async function confirmRestore() {
   try {
     const safetySaved = await exportLedgerJson(state, isTauri)
     if (!safetySaved) {
-      setError('已取消保存恢复前备份，当前数据没有被修改')
+      setError(t('backup.safetyCancelled'))
       return
     }
     const restored = await restoreBackup(selected.backup)
     if (restored) {
-      exportMessage.value = `恢复成功：${selected.accountCount} 个账户，${selected.transactionCount} 条流水`
+      exportMessage.value = t('backup.restoreSuccess', {
+        accounts: selected.accountCount,
+        transactions: selected.transactionCount,
+      })
       selectedBackup.value = null
     }
   }
   catch (error) {
-    setError(error instanceof Error ? `恢复失败：${error.message}` : '恢复失败，当前数据未修改')
+    setError(error instanceof Error ? t('backup.restoreFailed', { error: error.message }) : t('backup.restoreFailedGeneric'))
   }
   finally {
     restoring.value = false
@@ -139,13 +148,13 @@ async function inspectBalances(repair = false) {
   const result = await checkBalanceIntegrity(repair)
   if (!result) return
   if (result.ok) {
-    integrityMessage.value = '检查完成：所有账户余额都正确。'
+    integrityMessage.value = t('integrity.ok')
   }
   else if (result.repaired) {
-    integrityMessage.value = `发现并修复了 ${result.issues.length} 个账户的余额。`
+    integrityMessage.value = t('integrity.repaired', { count: result.issues.length })
   }
   else {
-    integrityMessage.value = `发现 ${result.issues.length} 个账户余额不一致，可以点击“检查并修复”。`
+    integrityMessage.value = t('integrity.issues', { count: result.issues.length })
   }
 }
 </script>
@@ -154,16 +163,27 @@ async function inspectBalances(repair = false) {
   <section class="panel">
     <div class="section-heading">
       <div>
-        <h3>偏好设置</h3>
-        <p>这些设置会保存到当前账本，在刷新或重新打开应用后仍然生效。</p>
+        <h3>{{ t('settings.preferences') }}</h3>
+        <p>{{ t('settings.persistDescription') }}</p>
       </div>
-      <span class="persistence-badge">已持久化</span>
+      <span class="persistence-badge">{{ t('settings.persisted') }}</span>
     </div>
 
     <div class="field">
       <div>
-        <label for="base-currency">基准货币</label>
-        <p>摘要与报表统一折算到该币种。</p>
+        <label for="interface-language">{{ t('settings.language') }}</label>
+        <p>{{ t('settings.languageDescription') }}</p>
+      </div>
+      <select id="interface-language" :value="state.settings.language" :disabled="busy" @change="changeLanguage">
+        <option value="zh-CN">{{ t('settings.chinese') }}</option>
+        <option value="en">{{ t('settings.english') }}</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <div>
+        <label for="base-currency">{{ t('settings.baseCurrency') }}</label>
+        <p>{{ t('settings.baseDescription') }}</p>
       </div>
       <select id="base-currency" :value="state.settings.baseCurrency" :disabled="busy" @change="changeCurrency">
         <option v-for="(label, key) in CURRENCY_LABELS" :key="key" :value="key">{{ label }}</option>
@@ -172,23 +192,23 @@ async function inspectBalances(repair = false) {
 
     <div class="field">
       <div>
-        <label>金额遮罩</label>
-        <p>在公共场所隐藏所有金额。</p>
+        <label>{{ t('settings.mask') }}</label>
+        <p>{{ t('settings.maskDescription') }}</p>
       </div>
       <div class="seg">
-        <button :class="{ on: !state.settings.masked }" :disabled="busy" @click="setPreference('masked', false)">关闭</button>
-        <button :class="{ on: state.settings.masked }" :disabled="busy" @click="setPreference('masked', true)">开启</button>
+        <button :class="{ on: !state.settings.masked }" :disabled="busy" @click="setPreference('masked', false)">{{ t('settings.off') }}</button>
+        <button :class="{ on: state.settings.masked }" :disabled="busy" @click="setPreference('masked', true)">{{ t('settings.on') }}</button>
       </div>
     </div>
 
     <div class="field">
       <div>
-        <label>界面主题</label>
-        <p>选择适合当前环境的显示模式。</p>
+        <label>{{ t('settings.theme') }}</label>
+        <p>{{ t('settings.themeDescription') }}</p>
       </div>
       <div class="seg">
-        <button :class="{ on: state.settings.theme === 'light' }" :disabled="busy" @click="setPreference('theme', 'light')">浅色</button>
-        <button :class="{ on: state.settings.theme === 'dark' }" :disabled="busy" @click="setPreference('theme', 'dark')">深色</button>
+        <button :class="{ on: state.settings.theme === 'light' }" :disabled="busy" @click="setPreference('theme', 'light')">{{ t('settings.light') }}</button>
+        <button :class="{ on: state.settings.theme === 'dark' }" :disabled="busy" @click="setPreference('theme', 'dark')">{{ t('settings.dark') }}</button>
       </div>
     </div>
   </section>
@@ -196,10 +216,10 @@ async function inspectBalances(repair = false) {
   <section class="panel backup">
     <div class="section-heading">
       <div>
-        <h3>数据备份与恢复</h3>
-        <p>JSON 用于完整恢复；Excel 和 CSV 用于查看、整理与交换数据。</p>
+        <h3>{{ t('backup.title') }}</h3>
+        <p>{{ t('backup.description') }}</p>
       </div>
-      <span class="persistence-badge">数据库 v1</span>
+      <span class="persistence-badge">{{ t('backup.schema', { version: LEDGER_SCHEMA_VERSION }) }}</span>
     </div>
     <div class="backup-actions">
       <button
@@ -207,66 +227,66 @@ async function inspectBalances(repair = false) {
         :disabled="busy || exporting !== null || restoring"
         @click="exportBackup('json')"
       >
-        {{ exporting === 'json' ? '正在生成…' : '导出完整 JSON 备份' }}
+        {{ exporting === 'json' ? t('backup.generating') : t('backup.exportJson') }}
       </button>
       <button
         class="backup-export"
         :disabled="busy || exporting !== null"
         @click="exportBackup('xlsx')"
       >
-        {{ exporting === 'xlsx' ? '正在生成…' : '导出 Excel 备份' }}
+        {{ exporting === 'xlsx' ? t('backup.generating') : t('backup.exportExcel') }}
       </button>
       <button
         class="backup-export"
         :disabled="busy || exporting !== null"
         @click="exportBackup('csv')"
       >
-        {{ exporting === 'csv' ? '正在生成…' : '导出 CSV 备份' }}
+        {{ exporting === 'csv' ? t('backup.generating') : t('backup.exportCsv') }}
       </button>
       <span v-if="exportMessage" class="export-success" role="status">{{ exportMessage }}</span>
     </div>
     <div class="restore-box">
       <div>
-        <h4>从完整备份恢复</h4>
-        <p>先选择 JSON 文件检查内容。确认恢复前，应用还会要求保存一份当前账本。</p>
+        <h4>{{ t('backup.restoreTitle') }}</h4>
+        <p>{{ t('backup.restoreDescription') }}</p>
       </div>
       <button
         class="restore-select"
         :disabled="busy || selectingBackup || restoring || exporting !== null"
         @click="chooseBackup"
       >
-        {{ selectingBackup ? '正在读取…' : '选择 JSON 备份' }}
+        {{ selectingBackup ? t('backup.reading') : t('backup.select') }}
       </button>
       <button
         class="restore-select"
         :disabled="busy || selectingBackup || restoring || exporting !== null"
         @click="chooseLatestAutomaticBackup"
-      >读取最近自动备份</button>
+      >{{ t('backup.latest') }}</button>
     </div>
     <div v-if="selectedBackup" class="restore-preview" role="status">
       <div>
-        <strong>备份检查通过</strong>
-        <p>导出时间：{{ displayDate(selectedBackup.exportedAt) }}</p>
-        <p>包含 {{ selectedBackup.accountCount }} 个账户、{{ selectedBackup.transactionCount }} 条流水</p>
-        <p>当前的 {{ state.accounts.length }} 个账户、{{ state.transactions.length }} 条流水将被替换。</p>
+        <strong>{{ t('backup.valid') }}</strong>
+        <p>{{ t('backup.exportedAt', { date: displayDate(selectedBackup.exportedAt) }) }}</p>
+        <p>{{ t('backup.contains', { accounts: selectedBackup.accountCount, transactions: selectedBackup.transactionCount }) }}</p>
+        <p>{{ t('backup.replaces', { accounts: state.accounts.length, transactions: state.transactions.length }) }}</p>
       </div>
       <button class="restore-confirm" :disabled="busy || restoring" @click="confirmRestore">
-        {{ restoring ? '正在恢复…' : '覆盖并恢复' }}
+        {{ restoring ? t('backup.restoring') : t('backup.restore') }}
       </button>
     </div>
-    <p class="backup-tip">备份文件包含未遮罩的真实金额，请保存到可信位置，不要公开上传。</p>
-    <p class="automatic-tip">每次修改数据前，应用会在本机自动保存一份完整快照，并只保留最近 7 份。</p>
+    <p class="backup-tip">{{ t('backup.privacy') }}</p>
+    <p class="automatic-tip">{{ t('backup.automatic') }}</p>
   </section>
 
   <section class="panel">
     <div class="section-heading">
       <div>
-        <h3>账本余额检查</h3>
-        <p>按照“期初余额 + 收入 − 支出”重新核对，不一致时可以自动修复。</p>
+        <h3>{{ t('integrity.title') }}</h3>
+        <p>{{ t('integrity.description') }}</p>
       </div>
       <div class="integrity-actions">
-        <button :disabled="busy" @click="inspectBalances(false)">只检查</button>
-        <button class="repair" :disabled="busy" @click="inspectBalances(true)">检查并修复</button>
+        <button :disabled="busy" @click="inspectBalances(false)">{{ t('integrity.check') }}</button>
+        <button class="repair" :disabled="busy" @click="inspectBalances(true)">{{ t('integrity.repair') }}</button>
       </div>
     </div>
     <p v-if="integrityMessage" class="integrity-message" role="status">{{ integrityMessage }}</p>
@@ -274,10 +294,10 @@ async function inspectBalances(repair = false) {
 
   <section class="panel danger">
     <div>
-      <h3>危险区域</h3>
-      <p>清空后账户、交易和偏好设置都会重置；可使用完整 JSON 备份恢复。</p>
+      <h3>{{ t('danger.title') }}</h3>
+      <p>{{ t('danger.description') }}</p>
     </div>
-    <button class="danger-btn" :disabled="busy" @click="confirmClear">清空全部数据</button>
+    <button class="danger-btn" :disabled="busy" @click="confirmClear">{{ t('danger.clear') }}</button>
   </section>
 </template>
 

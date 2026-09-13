@@ -29,6 +29,7 @@ Five dynamically selected components provide navigation. `useLedger` uses Nuxt `
 | `app/app.vue` | Application shell and navigation |
 | `app/components/` | Dashboard, accounts, transactions, reports, settings |
 | `app/composables/useLedger.ts` | State, statistics, errors, and backend selection |
+| `app/composables/useLocale.ts` | Reactive Chinese/English UI messages and interpolation |
 | `app/services/ledger/` | Backend contract, HTTP adapter, Tauri adapter |
 | `app/utils/ledgerBackup.ts` | Export formats, backup parsing, browser/native file access |
 | `server/api/` | Nitro HTTP handlers |
@@ -61,10 +62,11 @@ Web defaults to `data/accounting.sqlite`, overridden by `NUXT_DATABASE_PATH`. Ta
 
 ## Migrations and backups
 
-- Schema version **2**, stored in `PRAGMA user_version`; backup format version **1**.
+- Schema version **3**, stored in `PRAGMA user_version`; backup format version **1**.
 - The backup identifier remains `accounting-tool-backup` for compatibility.
 - Migrations run sequentially in transactions. Newer unsupported schemas are rejected.
 - Version 2 adds opening balances and transfer identifiers; opening balances are derived from existing balances and transactions.
+- Version 3 adds the persisted interface language; existing databases and older JSON backups default to Simplified Chinese.
 - JSON restore validates versions, IDs, currencies, and relationships, then replaces the ledger transactionally. The UI requires saving the current ledger before proceeding.
 - Automatic pre-change JSON snapshots live in `automatic-backups` next to the Web database or inside the Tauri app data directory. Seven files are retained; amounts are unmasked.
 - JSON is the full restore format. Excel exports contain explanation, accounts, transactions, and settings sheets; CSV distinguishes record types. Neither supports import yet.

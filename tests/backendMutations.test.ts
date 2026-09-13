@@ -55,7 +55,7 @@ it('matches the shared mutation contract: edits, transfers, rejection and restor
     expect(() => restoreLedger(db, invalid)).toThrow()
     expect(getSnapshot(db)).toEqual(backup.data)
     expect(clearLedger(db)).toEqual({
-      accounts: [], transactions: [], settings: { baseCurrency: 'CNY', masked: false, theme: 'light' },
+      accounts: [], transactions: [], settings: { baseCurrency: 'CNY', masked: false, theme: 'light', language: 'zh-CN' },
     })
   }
   finally {

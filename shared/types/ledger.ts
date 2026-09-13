@@ -5,13 +5,14 @@ export const ACCOUNT_TYPES = [
 export const CURRENCIES = ['CNY', 'HKD', 'USD', 'EUR', 'USDT', 'BTC'] as const
 export const TX_TYPES = ['income', 'expense'] as const
 
-export const LEDGER_SCHEMA_VERSION = 2
+export const LEDGER_SCHEMA_VERSION = 3
 export const BACKUP_FORMAT_VERSION = 1
 export const BACKUP_FORMAT = 'accounting-tool-backup' as const
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number]
 export type Currency = (typeof CURRENCIES)[number]
 export type TxType = (typeof TX_TYPES)[number]
+export type Language = 'zh-CN' | 'en'
 
 export interface Account {
   id: number
@@ -80,6 +81,7 @@ export interface Settings {
   baseCurrency: Currency
   masked: boolean
   theme: 'light' | 'dark'
+  language: Language
 }
 
 export interface LedgerSnapshot {
@@ -107,6 +109,7 @@ export const DEFAULT_SETTINGS: Settings = {
   baseCurrency: 'CNY',
   masked: false,
   theme: 'light',
+  language: 'zh-CN',
 }
 
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
@@ -117,6 +120,16 @@ export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   debt: '负债/贷款',
   wallet: '钱包/平台',
   other: '其他',
+}
+
+export const ACCOUNT_TYPE_LABELS_EN: Record<AccountType, string> = {
+  cash: 'Cash',
+  bank: 'Bank account',
+  credit: 'Credit card',
+  invest: 'Investment',
+  debt: 'Debt / loan',
+  wallet: 'Wallet / platform',
+  other: 'Other',
 }
 
 export const CURRENCY_LABELS: Record<Currency, string> = {

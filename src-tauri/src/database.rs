@@ -123,6 +123,12 @@ pub(crate) fn migrate_database(database: &mut Connection) -> Result<(), String> 
         match next_version {
             1 => transaction.execute_batch(SCHEMA).map_err(database_error)?,
             2 => migrate_to_v2(&transaction)?,
+            3 => transaction
+                .execute_batch(
+                    "ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'zh-CN'
+                     CHECK (language IN ('zh-CN', 'en'));",
+                )
+                .map_err(database_error)?,
             _ => return Err(format!("缺少数据库版本 {next_version} 的迁移脚本")),
         }
         transaction

@@ -33,9 +33,9 @@ function emptySnapshot(): LedgerSnapshot {
   }
 }
 
-function errorMessage(error: unknown): string {
+function errorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'string') return error
-  if (!error || typeof error !== 'object') return '操作失败，请稍后再试'
+  if (!error || typeof error !== 'object') return fallback
   const candidate = error as {
     data?: { message?: string, data?: { message?: string } }
     statusMessage?: string
@@ -45,7 +45,7 @@ function errorMessage(error: unknown): string {
     ?? candidate.data?.message
     ?? candidate.statusMessage
     ?? candidate.message
-    ?? '操作失败，请稍后再试'
+    ?? fallback
 }
 
 export function useLedger() {
@@ -78,7 +78,12 @@ export function useLedger() {
       return await request()
     }
     catch (error) {
-      lastError.value = errorMessage(error)
+      lastError.value = errorMessage(
+        error,
+        state.value.settings.language === 'en'
+          ? 'Something went wrong. Please try again.'
+          : '操作失败，请稍后再试',
+      )
       return undefined
     }
     finally {

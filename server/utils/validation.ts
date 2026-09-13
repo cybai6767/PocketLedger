@@ -45,6 +45,7 @@ export const settingsSchema = z.object({
   baseCurrency: z.enum(CURRENCIES),
   masked: z.boolean(),
   theme: z.enum(['light', 'dark']),
+  language: z.enum(['zh-CN', 'en']),
 }).strict()
 
 export const reorderSchema = z.object({
@@ -79,7 +80,9 @@ export const ledgerBackupSchema = z.object({
   data: z.object({
     accounts: z.array(restoredAccountSchema).max(10_000, '账户数量过多'),
     transactions: z.array(restoredTransactionSchema).max(1_000_000, '流水数量过多'),
-    settings: settingsSchema,
+    settings: settingsSchema.extend({
+      language: z.enum(['zh-CN', 'en']).default('zh-CN'),
+    }),
   }).strict(),
 }).strict().superRefine((backup, context) => {
   const accountIds = new Set<number>()

@@ -22,14 +22,17 @@ const {
   monthExpense,
   toggleTheme,
 } = useLedger()
+const { locale, t } = useLocale()
 
-const tabs = [
-  { key: 'dashboard', label: '首页', icon: '⌂', component: Dashboard },
-  { key: 'accounts', label: '账户', icon: '▣', component: Accounts },
-  { key: 'transactions', label: '交易', icon: '↕', component: Transactions },
-  { key: 'reports', label: '报表', icon: '⌁', component: Reports },
-  { key: 'settings', label: '设置', icon: '⚙', component: Settings },
-] as const
+const tabs = computed(() => [
+  { key: 'dashboard', label: t('tab.dashboard'), icon: '⌂', component: Dashboard },
+  { key: 'accounts', label: t('tab.accounts'), icon: '▣', component: Accounts },
+  { key: 'transactions', label: t('tab.transactions'), icon: '↕', component: Transactions },
+  { key: 'reports', label: t('tab.reports'), icon: '⌁', component: Reports },
+  { key: 'settings', label: t('tab.settings'), icon: '⚙', component: Settings },
+] as const)
+const current = computed(() => tabs.value.find(tab => tab.key === activeTab.value)?.component ?? Dashboard)
+const currentLabel = computed(() => tabs.value.find(tab => tab.key === activeTab.value)?.label ?? t('tab.dashboard'))
 
 const isTauri = Boolean(useRuntimeConfig().public.tauri)
 const initialRequest = await useAsyncData<LedgerSnapshot>(
@@ -42,20 +45,19 @@ watch(data, snapshot => {
 }, { immediate: true })
 
 watch(error, fetchError => {
-  if (fetchError) setError(fetchError.statusMessage || '无法读取账本数据')
+  if (fetchError) setError(fetchError.statusMessage || t('app.loadError'))
 }, { immediate: true })
 
 useHead(() => ({
-  htmlAttrs: { 'data-theme': state.settings.theme },
+  htmlAttrs: { 'data-theme': state.settings.theme, lang: locale.value },
+  title: `PocketLedger · ${currentLabel.value}`,
 }))
 
-const current = computed(() => tabs.find(tab => tab.key === activeTab.value)?.component ?? Dashboard)
-const currentLabel = computed(() => tabs.find(tab => tab.key === activeTab.value)?.label ?? '首页')
 const symbol = computed(() => CURRENCY_SYMBOLS[state.settings.baseCurrency])
 
 function formatMoney(value: number) {
   if (state.settings.masked) return '****'
-  return symbol.value + value.toLocaleString('zh-CN', {
+  return symbol.value + value.toLocaleString(locale.value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
@@ -71,14 +73,14 @@ async function retry() {
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-row">
-        <div class="brand">账</div>
+        <div class="brand">{{ locale === 'en' ? 'P' : '账' }}</div>
         <div>
           <h1 class="title">PocketLedger</h1>
-          <p class="subtitle">{{ isTauri ? 'TAURI 离线版' : 'NUXT 全栈版' }}</p>
+          <p class="subtitle">{{ isTauri ? t('app.subtitleTauri') : t('app.subtitleWeb') }}</p>
         </div>
       </div>
 
-      <nav aria-label="主导航">
+      <nav :aria-label="t('app.eyebrow')">
         <button
           v-for="tab in tabs"
           :key="tab.key"
@@ -92,21 +94,21 @@ async function retry() {
 
       <div class="server-badge">
         <span class="status-dot" />
-        {{ isTauri ? '本机数据已启用' : '服务端数据已启用' }}
+        {{ isTauri ? t('app.localData') : t('app.serverData') }}
       </div>
     </aside>
 
     <main class="main">
       <header class="topbar">
         <div>
-          <p class="eyebrow">个人财务中心</p>
+          <p class="eyebrow">{{ t('app.eyebrow') }}</p>
           <h2>{{ currentLabel }}</h2>
         </div>
         <div class="topbar-actions">
-          <span v-if="busy" class="saving">正在保存…</span>
-          <button class="icon-button" title="切换主题" @click="toggleTheme">
+          <span v-if="busy" class="saving">{{ t('app.saving') }}</span>
+          <button class="icon-button" :title="t('app.theme')" @click="toggleTheme">
             {{ state.settings.theme === 'light' ? '☾' : '☀' }}
-            <span>主题</span>
+            <span>{{ t('app.theme') }}</span>
           </button>
         </div>
       </header>
@@ -114,36 +116,36 @@ async function retry() {
       <div v-if="lastError" class="error-banner" role="alert">
         <span>{{ lastError }}</span>
         <div>
-          <button v-if="status === 'error'" @click="retry">重试</button>
-          <button aria-label="关闭错误提示" @click="setError(null)">×</button>
+          <button v-if="status === 'error'" @click="retry">{{ t('app.retry') }}</button>
+          <button :aria-label="t('app.closeError')" @click="setError(null)">×</button>
         </div>
       </div>
 
-      <section class="summary" aria-label="财务摘要">
+      <section class="summary" :aria-label="t('app.eyebrow')">
         <div class="summary-card net-worth">
           <span class="summary-icon">◎</span>
           <div>
-            <span class="label">净资产 · {{ state.settings.baseCurrency }}</span>
+            <span class="label">{{ t('summary.netWorth') }} · {{ state.settings.baseCurrency }}</span>
             <strong class="value">{{ formatMoney(netWorth) }}</strong>
           </div>
         </div>
         <div class="summary-card income">
           <span class="summary-icon">↗</span>
           <div>
-            <span class="label">本月收入</span>
+            <span class="label">{{ t('summary.income') }}</span>
             <strong class="value">{{ formatMoney(monthIncome) }}</strong>
           </div>
         </div>
         <div class="summary-card expense">
           <span class="summary-icon">↘</span>
           <div>
-            <span class="label">本月支出</span>
+            <span class="label">{{ t('summary.expense') }}</span>
             <strong class="value">{{ formatMoney(monthExpense) }}</strong>
           </div>
         </div>
       </section>
 
-      <div v-if="status === 'pending' && !data" class="loading-state">正在载入账本…</div>
+      <div v-if="status === 'pending' && !data" class="loading-state">{{ t('summary.loading') }}</div>
       <component :is="current" v-else :key="activeTab" />
     </main>
   </div>

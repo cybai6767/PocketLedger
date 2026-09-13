@@ -2,13 +2,14 @@ import type { Worksheet } from 'exceljs'
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
+  ACCOUNT_TYPE_LABELS_EN,
   BACKUP_FORMAT,
   BACKUP_FORMAT_VERSION,
   CURRENCIES,
   LEDGER_SCHEMA_VERSION,
   TX_TYPES,
 } from '../../shared/types/ledger'
-import type { LedgerBackup, LedgerBackupPreview, LedgerSnapshot } from '../../shared/types/ledger'
+import type { Language, LedgerBackup, LedgerBackupPreview, LedgerSnapshot } from '../../shared/types/ledger'
 import { z } from 'zod'
 
 type BackupFormat = 'csv' | 'xlsx' | 'json'
@@ -58,6 +59,7 @@ async function saveBytes(
   filename: string,
   format: BackupFormat,
   isTauri: boolean,
+  language: Language,
 ): Promise<boolean> {
   if (isTauri) {
     const [{ save }, { writeFile }] = await Promise.all([
@@ -67,7 +69,9 @@ async function saveBytes(
     const path = await save({
       defaultPath: filename,
       filters: [{
-        name: format === 'xlsx' ? 'Excel 工作簿' : format === 'json' ? '完整 JSON 备份' : 'CSV 文件',
+        name: language === 'en'
+          ? (format === 'xlsx' ? 'Excel workbook' : format === 'json' ? 'Complete JSON backup' : 'CSV file')
+          : (format === 'xlsx' ? 'Excel 工作簿' : format === 'json' ? '完整 JSON 备份' : 'CSV 文件'),
         extensions: [format],
       }],
     })
@@ -125,6 +129,7 @@ const jsonBackupSchema = z.object({
       baseCurrency: z.enum(CURRENCIES),
       masked: z.boolean(),
       theme: z.enum(['light', 'dark']),
+      language: z.enum(['zh-CN', 'en']).default('zh-CN'),
     }).strict(),
   }).strict(),
 }).strict().superRefine((backup, context) => {
@@ -182,20 +187,34 @@ export function createLedgerJson(snapshot: LedgerSnapshot, exportedAt = new Date
   return `${JSON.stringify(backup, null, 2)}\n`
 }
 
-export function parseLedgerJson(source: string): LedgerBackupPreview {
+function localizeBackupError(message: string, language: Language): string {
+  if (language !== 'en') return message
+  if (message.includes('备份格式版本不受支持')) return 'This backup format version is not supported'
+  if (message.includes('备份数据库版本过新')) return 'This backup requires a newer version of PocketLedger'
+  if (message.includes('引用了不存在的账户')) return 'A transaction references an account that does not exist'
+  if (message.includes('币种与账户不一致')) return 'A transaction currency does not match its account'
+  if (message.includes('重复')) return 'The backup contains duplicate IDs'
+  if (message.includes('转账') && message.includes('不完整或不一致')) return 'The backup contains an incomplete or inconsistent transfer'
+  return 'The backup content is invalid'
+}
+
+export function parseLedgerJson(
+  source: string,
+  language: Language = 'zh-CN',
+): LedgerBackupPreview {
   if (new TextEncoder().encode(source).byteLength > 50 * 1024 * 1024) {
-    throw new Error('备份文件超过 50 MB，已拒绝读取')
+    throw new Error(language === 'en' ? 'The backup is larger than 50 MB and cannot be opened' : '备份文件超过 50 MB，已拒绝读取')
   }
   let value: unknown
   try {
     value = JSON.parse(source)
   }
   catch {
-    throw new Error('文件不是有效的 JSON 备份')
+    throw new Error(language === 'en' ? 'The selected file is not a valid JSON backup' : '文件不是有效的 JSON 备份')
   }
   const result = jsonBackupSchema.safeParse(value)
   if (!result.success) {
-    throw new Error(result.error.issues[0]?.message ?? '备份内容无效')
+    throw new Error(localizeBackupError(result.error.issues[0]?.message ?? '备份内容无效', language))
   }
   return {
     backup: result.data,
@@ -214,10 +233,11 @@ export async function exportLedgerJson(
     backupFilename('json'),
     'json',
     isTauri,
+    snapshot.settings.language,
   )
 }
 
-async function selectBrowserJson(): Promise<string | null> {
+async function selectBrowserJson(language: Language): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input')
     let settled = false
@@ -235,7 +255,7 @@ async function selectBrowserJson(): Promise<string | null> {
       const file = input.files?.[0]
       if (!file) return finish(null)
       if (file.size > 50 * 1024 * 1024) {
-        return finish(null, new Error('备份文件超过 50 MB，已拒绝读取'))
+        return finish(null, new Error(language === 'en' ? 'The backup is larger than 50 MB and cannot be opened' : '备份文件超过 50 MB，已拒绝读取'))
       }
       try {
         finish(await file.text())
@@ -250,7 +270,10 @@ async function selectBrowserJson(): Promise<string | null> {
   })
 }
 
-export async function selectLedgerJson(isTauri: boolean): Promise<LedgerBackupPreview | null> {
+export async function selectLedgerJson(
+  isTauri: boolean,
+  language: Language = 'zh-CN',
+): Promise<LedgerBackupPreview | null> {
   let source: string | null
   if (isTauri) {
     const [{ open }, { readTextFile }] = await Promise.all([
@@ -260,50 +283,55 @@ export async function selectLedgerJson(isTauri: boolean): Promise<LedgerBackupPr
     const path = await open({
       multiple: false,
       directory: false,
-      filters: [{ name: '完整 JSON 备份', extensions: ['json'] }],
+      filters: [{ name: language === 'en' ? 'Complete JSON backup' : '完整 JSON 备份', extensions: ['json'] }],
     })
     if (!path) return null
     source = await readTextFile(path)
   }
   else {
-    source = await selectBrowserJson()
+    source = await selectBrowserJson(language)
   }
-  return source === null ? null : parseLedgerJson(source)
+  return source === null ? null : parseLedgerJson(source, language)
 }
 
-function formatExportedAt(date: Date): string {
-  return date.toLocaleString('zh-CN', { hour12: false })
+function formatExportedAt(date: Date, language: Language): string {
+  return date.toLocaleString(language, { hour12: false })
 }
 
 export function createLedgerCsv(snapshot: LedgerSnapshot, exportedAt = new Date()): string {
-  const headers = [
-    '记录类型', '格式版本', 'ID', '账户ID', '账户名称', '账户类型', '日期', '收支类型',
-    '金额', '币种', '分类', '备注', '排序', '设置键', '设置值',
-  ]
+  const english = snapshot.settings.language === 'en'
+  const headers = english
+    ? ['Record type', 'Format version', 'ID', 'Account ID', 'Account name', 'Account type', 'Date', 'Transaction type', 'Amount', 'Currency', 'Category', 'Note', 'Sort order', 'Setting key', 'Setting value']
+    : ['记录类型', '格式版本', 'ID', '账户ID', '账户名称', '账户类型', '日期', '收支类型', '金额', '币种', '分类', '备注', '排序', '设置键', '设置值']
+  const labels = english
+    ? { metadata: 'Metadata', account: 'Account', transaction: 'Transaction', settings: 'Setting', schema: 'Schema version', exportedAt: 'Exported at' }
+    : { metadata: '元数据', account: '账户', transaction: '流水', settings: '设置', schema: '数据库版本', exportedAt: '导出时间' }
   const rows: Array<Array<string | number | boolean | null | undefined>> = [
-    ['元数据', BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, '数据库版本', LEDGER_SCHEMA_VERSION],
-    ['元数据', BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, '导出时间', exportedAt.toISOString()],
+    [labels.metadata, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, labels.schema, LEDGER_SCHEMA_VERSION],
+    [labels.metadata, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, labels.exportedAt, exportedAt.toISOString()],
   ]
 
   for (const account of snapshot.accounts) {
     rows.push([
-      '账户', BACKUP_FORMAT_VERSION, account.id, null, account.name, account.type, null, null,
+      labels.account, BACKUP_FORMAT_VERSION, account.id, null, account.name,
+      english ? ACCOUNT_TYPE_LABELS_EN[account.type] : ACCOUNT_TYPE_LABELS[account.type], null, null,
       account.balance, account.currency, null, null, account.sortOrder, null, null,
     ])
   }
 
   for (const transaction of snapshot.transactions) {
     rows.push([
-      '流水', BACKUP_FORMAT_VERSION, transaction.id, transaction.accountId, null, null,
-      transaction.date, transaction.type, transaction.amount, transaction.currency,
+      labels.transaction, BACKUP_FORMAT_VERSION, transaction.id, transaction.accountId, null, null,
+      transaction.date, english ? (transaction.type === 'income' ? 'Income' : 'Expense') : (transaction.type === 'income' ? '收入' : '支出'), transaction.amount, transaction.currency,
       transaction.category, transaction.note ?? '', null, null, null,
     ])
   }
 
   rows.push(
-    ['设置', BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'baseCurrency', snapshot.settings.baseCurrency],
-    ['设置', BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'masked', snapshot.settings.masked],
-    ['设置', BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'theme', snapshot.settings.theme],
+    [labels.settings, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'baseCurrency', snapshot.settings.baseCurrency],
+    [labels.settings, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'masked', snapshot.settings.masked],
+    [labels.settings, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'theme', snapshot.settings.theme],
+    [labels.settings, BACKUP_FORMAT_VERSION, null, null, null, null, null, null, null, null, null, null, null, 'language', snapshot.settings.language],
   )
 
   return `\uFEFF${[headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')}`
@@ -319,6 +347,7 @@ export async function exportLedgerCsv(
     backupFilename('csv'),
     'csv',
     isTauri,
+    snapshot.settings.language,
   )
 }
 
@@ -363,26 +392,27 @@ export async function createLedgerXlsx(
 ): Promise<Uint8Array<ArrayBuffer>> {
   const ExcelJS = (await import('exceljs')).default
   const workbook = new ExcelJS.Workbook()
+  const english = snapshot.settings.language === 'en'
   workbook.creator = PRODUCT_NAME
   workbook.created = exportedAt
   workbook.modified = exportedAt
 
-  const info = workbook.addWorksheet('说明', { views: [{ showGridLines: false }] })
+  const info = workbook.addWorksheet(english ? 'About' : '说明', { views: [{ showGridLines: false }] })
   info.mergeCells('A1:D1')
-  info.getCell('A1').value = `${PRODUCT_NAME}数据备份`
+  info.getCell('A1').value = english ? `${PRODUCT_NAME} Data Backup` : `${PRODUCT_NAME}数据备份`
   info.getCell('A1').font = { bold: true, size: 18, color: { argb: HEADER_TEXT } }
   info.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ACCENT } }
   info.getCell('A1').alignment = { vertical: 'middle', horizontal: 'center' }
   info.getRow(1).height = 34
   info.addRows([
     [],
-    ['项目', '内容'],
-    ['备份格式版本', BACKUP_FORMAT_VERSION],
-    ['数据库结构版本', LEDGER_SCHEMA_VERSION],
-    ['导出时间', formatExportedAt(exportedAt)],
-    ['账户数量', snapshot.accounts.length],
-    ['流水数量', snapshot.transactions.length],
-    ['说明', '账户、流水和设置分别保存在对应工作表中。请保留原始 ID，便于后续恢复或迁移。'],
+    english ? ['Item', 'Value'] : ['项目', '内容'],
+    [english ? 'Backup format version' : '备份格式版本', BACKUP_FORMAT_VERSION],
+    [english ? 'Database schema version' : '数据库结构版本', LEDGER_SCHEMA_VERSION],
+    [english ? 'Exported at' : '导出时间', formatExportedAt(exportedAt, snapshot.settings.language)],
+    [english ? 'Account count' : '账户数量', snapshot.accounts.length],
+    [english ? 'Transaction count' : '流水数量', snapshot.transactions.length],
+    [english ? 'About' : '说明', english ? 'Accounts, transactions, and settings are stored in separate worksheets. Keep the original IDs for future restore or migration.' : '账户、流水和设置分别保存在对应工作表中。请保留原始 ID，便于后续恢复或迁移。'],
   ])
   info.getRow(3).eachCell({ includeEmpty: true }, cell => {
     cell.font = { bold: true, color: { argb: HEADER_TEXT } }
@@ -398,13 +428,13 @@ export async function createLedgerXlsx(
   info.getCell('B9').alignment = { wrapText: true, vertical: 'top' }
   info.getRow(9).height = 38
 
-  const accounts = workbook.addWorksheet('账户')
-  accounts.addRow(['ID', '名称', '类型代码', '类型', '币种', '余额', '排序'])
+  const accounts = workbook.addWorksheet(english ? 'Accounts' : '账户')
+  accounts.addRow(english ? ['ID', 'Name', 'Type code', 'Type', 'Currency', 'Balance', 'Sort order'] : ['ID', '名称', '类型代码', '类型', '币种', '余额', '排序'])
   accounts.addRows(snapshot.accounts.map(account => [
     account.id,
     safeText(account.name),
     account.type,
-    ACCOUNT_TYPE_LABELS[account.type],
+    english ? ACCOUNT_TYPE_LABELS_EN[account.type] : ACCOUNT_TYPE_LABELS[account.type],
     account.currency,
     account.balance,
     account.sortOrder,
@@ -412,15 +442,15 @@ export async function createLedgerXlsx(
   styleDataSheet(accounts, [10, 24, 14, 16, 12, 18, 10], undefined, 6)
 
   const accountNames = new Map(snapshot.accounts.map(account => [account.id, account.name]))
-  const transactions = workbook.addWorksheet('流水')
-  transactions.addRow(['ID', '日期', '收支类型代码', '收支类型', '账户ID', '账户名称', '金额', '币种', '分类', '备注'])
+  const transactions = workbook.addWorksheet(english ? 'Transactions' : '流水')
+  transactions.addRow(english ? ['ID', 'Date', 'Type code', 'Type', 'Account ID', 'Account name', 'Amount', 'Currency', 'Category', 'Note'] : ['ID', '日期', '收支类型代码', '收支类型', '账户ID', '账户名称', '金额', '币种', '分类', '备注'])
   transactions.addRows(snapshot.transactions.map(transaction => [
     transaction.id,
     parseDate(transaction.date),
     transaction.type,
-    transaction.type === 'income' ? '收入' : '支出',
+    english ? (transaction.type === 'income' ? 'Income' : 'Expense') : (transaction.type === 'income' ? '收入' : '支出'),
     transaction.accountId,
-    safeText(accountNames.get(transaction.accountId) ?? '未知账户'),
+    safeText(accountNames.get(transaction.accountId) ?? (english ? 'Unknown account' : '未知账户')),
     transaction.amount,
     transaction.currency,
     safeText(transaction.category),
@@ -428,12 +458,13 @@ export async function createLedgerXlsx(
   ]))
   styleDataSheet(transactions, [10, 14, 16, 12, 12, 24, 18, 12, 18, 36], 2, 7)
 
-  const settings = workbook.addWorksheet('设置')
-  settings.addRow(['设置键', '设置值', '说明'])
+  const settings = workbook.addWorksheet(english ? 'Settings' : '设置')
+  settings.addRow(english ? ['Setting key', 'Setting value', 'Description'] : ['设置键', '设置值', '说明'])
   settings.addRows([
-    ['baseCurrency', snapshot.settings.baseCurrency, '摘要与报表使用的基准币种'],
-    ['masked', snapshot.settings.masked, '是否隐藏金额'],
-    ['theme', snapshot.settings.theme, '界面主题'],
+    ['baseCurrency', snapshot.settings.baseCurrency, english ? 'Base currency used in summaries and reports' : '摘要与报表使用的基准币种'],
+    ['masked', snapshot.settings.masked, english ? 'Whether amounts are hidden' : '是否隐藏金额'],
+    ['theme', snapshot.settings.theme, english ? 'Interface theme' : '界面主题'],
+    ['language', snapshot.settings.language, english ? 'Interface and export language' : '界面与导出语言'],
   ])
   styleDataSheet(settings, [24, 20, 42])
 
@@ -451,5 +482,6 @@ export async function exportLedgerXlsx(
     backupFilename('xlsx'),
     'xlsx',
     isTauri,
+    snapshot.settings.language,
   )
 }
