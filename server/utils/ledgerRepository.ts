@@ -75,7 +75,14 @@ function saveAutomaticBackup(database: LedgerDatabase): void {
     exportedAt: now.toISOString(),
     data: getSnapshot(database),
   }
-  const filename = `automatic-${now.getTime()}-${randomUUID()}.json`
+  // Preserve write order even when multiple mutations share a millisecond or
+  // the clock moves backwards. Read disk so reopening the database is safe too.
+  const lastTimestamp = readdirSync(directory).reduce((latest, name) => {
+    const match = /^automatic-(\d+)-[a-f0-9-]+\.json$/.exec(name)
+    return match ? Math.max(latest, Number(match[1])) : latest
+  }, 0)
+  const timestamp = Math.max(now.getTime(), lastTimestamp + 1)
+  const filename = `automatic-${timestamp}-${randomUUID()}.json`
   writeFileSync(join(directory, filename), `${JSON.stringify(backup, null, 2)}\n`, {
     encoding: 'utf8',
     flag: 'wx',

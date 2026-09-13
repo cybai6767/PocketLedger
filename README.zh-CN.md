@@ -79,5 +79,6 @@ docker compose up --build -d
 | --- | --- |
 | [架构说明（英文）](docs/architecture.md) | 数据路径、目录、存储、API 和兼容性 |
 | [开发指南（英文）](docs/development.md) | 环境准备、测试、构建、发布与贡献检查 |
+| [移动端回归（英文）](docs/mobile-regression.md) | 可重复运行的窄屏场景和 Android 真机检查清单 |
 
 技术栈为 Nuxt 4、Vue 3、TypeScript、Tauri 2、Rust 和 SQLite。欢迎通过 [Issues](https://github.com/bcielai321/PocketLedger/issues) 反馈问题，或提交范围明确的 [Pull Request](https://github.com/bcielai321/PocketLedger/pulls)。

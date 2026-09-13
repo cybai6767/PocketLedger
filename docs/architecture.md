@@ -9,8 +9,9 @@ PocketLedger shares a Vue interface across Web and Tauri. Business rules are imp
 ```mermaid
 flowchart TD
     UI[Vue components] --> State[useLedger: state and platform selection]
-    State --> HTTP[Web: HTTP API]
-    State --> IPC[Desktop / Android: Tauri invoke]
+    State --> Backend[LedgerBackend interface]
+    Backend --> HTTP[HTTP adapter]
+    Backend --> IPC[Tauri adapter]
     HTTP --> Nitro[Nitro handlers and TypeScript repository]
     IPC --> Rust[Rust commands and business rules]
     Nitro --> ServerDB[(Server SQLite)]
@@ -19,7 +20,7 @@ flowchart TD
 
 `NUXT_TAURI=true` or a Tauri platform environment selects the client build. Nuxt disables SSR and generates `.output/public`; Tauri embeds those static assets, not Nitro or the server database.
 
-Five dynamically selected components provide navigation. `useLedger` uses Nuxt `useState`, computes summaries, and selects HTTP or IPC for operations. Dedicated data adapters and splitting the Rust module are possible future refactors, not existing features.
+Five dynamically selected components provide navigation. `useLedger` uses Nuxt `useState`, computes summaries, and selects a `LedgerBackend` once when created. Each operation delegates to that interface. The HTTP adapter preserves API methods and payloads; the Tauri adapter lazily loads native IPC. Initial loading uses the same backend, with SSR enabled only for Web.
 
 ## Source map
 
@@ -27,12 +28,20 @@ Five dynamically selected components provide navigation. `useLedger` uses Nuxt `
 | --- | --- |
 | `app/app.vue` | Application shell and navigation |
 | `app/components/` | Dashboard, accounts, transactions, reports, settings |
-| `app/composables/useLedger.ts` | State, statistics, HTTP/IPC selection |
+| `app/composables/useLedger.ts` | State, statistics, errors, and backend selection |
+| `app/services/ledger/` | Backend contract, HTTP adapter, Tauri adapter |
 | `app/utils/ledgerBackup.ts` | Export formats, backup parsing, browser/native file access |
 | `server/api/` | Nitro HTTP handlers |
 | `server/utils/` | SQLite, migrations, validation, business operations |
 | `shared/types/ledger.ts` | TypeScript models and schema/backup constants |
-| `src-tauri/src/lib.rs` | Rust models, migrations, validation, business operations, commands, tests |
+| `src-tauri/src/lib.rs` | Application setup and command registration |
+| `src-tauri/src/models.rs` | Serializable contracts and application state |
+| `src-tauri/src/database.rs` | Schema initialization and migrations |
+| `src-tauri/src/validation.rs` | Input validation and decimal conversion |
+| `src-tauri/src/repository.rs` | Accounting operations and transactions |
+| `src-tauri/src/backup.rs` | Automatic snapshots and backup file access |
+| `src-tauri/src/commands.rs` | IPC boundary, database locking, pre-change backups |
+| `src-tauri/src/tests.rs` | Rust regressions and shared backend fixtures |
 | `src-tauri/gen/android/` | Android host and Gradle configuration |
 | `tests/` | TypeScript tests and shared backend fixtures |
 

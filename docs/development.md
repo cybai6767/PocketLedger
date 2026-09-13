@@ -50,9 +50,11 @@ npm run build
 
 `test:all` runs Vitest and Cargo tests; Rust and platform Tauri prerequisites are required. `npm test` runs the TypeScript suite alone.
 
-Both backends use `tests/fixtures/backend-consistency.json` to check specified operations against the same snapshot. This covers those scenarios, not every possible behavior. Type checking is separate from Nuxt build.
+Both backends use `tests/fixtures/backend-consistency.json` for snapshot compatibility and `backend-mutations.json` for transaction edits, transfers, rejected operations, and restore. Transport tests verify HTTP/IPC payloads; state tests cover failure recovery. These cover specified scenarios, not every possible behavior. Type checking is separate from Nuxt build.
 
-The quality workflow runs tests, type checking, and lint on `main` pushes, pull requests, and manual dispatch. It does not currently run the Web production build.
+See [Mobile regression](mobile-regression.md) for a repeatable browser scenario, the Android checklist, and explicit execution status.
+
+The quality workflow runs tests, type checking, lint, the Web production build, and the Tauri static frontend build on `main` pushes, pull requests, and manual dispatch.
 
 ## Desktop
 

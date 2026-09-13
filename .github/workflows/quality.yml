@@ -32,3 +32,8 @@ jobs:
         run: |
           npm run typecheck
           npm run lint
+
+      - name: Build Web and Tauri frontends
+        run: |
+          npm run build
+          npm run generate:tauri

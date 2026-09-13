@@ -1,0 +1,72 @@
+// Run only against an isolated, EMPTY Web ledger on port 3107.
+// This script creates synthetic accounts and transactions; it never clears data.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto('http://127.0.0.1:3107/', { waitUntil: 'networkidle' });
+const snapshot = () => page.evaluate(async () => {
+  const response = await fetch('/api/ledger');
+  if (!response.ok) throw new Error('Cannot read regression ledger');
+  return response.json();
+});
+const initial = await snapshot();
+expect(initial.accounts).toHaveLength(0);
+expect(initial.transactions).toHaveLength(0);
+const tab = name => page.getByRole('button', { name, exact: true }).click();
+const waitBalances = values => expect.poll(async () => (await snapshot()).accounts.map(a => a.balance)).toEqual(values);
+
+await tab('账户');
+for (const [name, balance] of [['回归现金', '100'], ['回归钱包', '10']]) {
+  await page.getByLabel('名称', { exact: true }).fill(name);
+  await page.getByLabel('当前余额', { exact: true }).fill(balance);
+  await page.getByRole('button', { name: '保存账户', exact: true }).click();
+  await expect(page.getByRole('cell', { name, exact: false })).toBeVisible();
+}
+await waitBalances([100, 10]);
+
+await tab('交易');
+await page.getByLabel('来源账户', { exact: true }).selectOption({ label: '回归现金' });
+await page.getByLabel('金额', { exact: true }).fill('20');
+await page.getByRole('button', { name: '保存', exact: true }).click();
+await waitBalances([80, 10]);
+await page.getByRole('button', { name: '修改', exact: true }).click();
+await page.getByLabel('金额', { exact: true }).fill('30');
+await page.getByRole('button', { name: '保存修改', exact: true }).click();
+await waitBalances([70, 10]);
+
+await page.getByRole('button', { name: '账户转账', exact: true }).click();
+await page.getByLabel('转账金额', { exact: true }).fill('25');
+await page.getByRole('button', { name: '确认转账', exact: true }).click();
+await waitBalances([45, 35]);
+await expect(page.getByRole('row').filter({ hasText: '账户转账' })).toHaveCount(2);
+page.once('dialog', dialog => dialog.accept());
+await page.getByRole('row').filter({ hasText: '账户转账' }).first().getByRole('button', { name: '删除', exact: true }).click();
+await waitBalances([70, 10]);
+await expect(page.getByRole('row').filter({ hasText: '账户转账' })).toHaveCount(0);
+
+await tab('设置');
+await page.getByRole('button', { name: '深色', exact: true }).click();
+await expect.poll(async () => (await snapshot()).settings.theme).toBe('dark');
+const download = page.waitForEvent('download');
+await page.getByRole('button', { name: '导出完整 JSON 备份', exact: true }).click();
+expect((await download).suggestedFilename()).toMatch(/^PocketLedger-backup-.*\.json$/);
+await page.getByRole('button', { name: '读取最近自动备份', exact: true }).click();
+await expect(page.getByText('备份检查通过', { exact: true })).toBeVisible();
+page.once('dialog', dialog => dialog.accept());
+const safetyDownload = page.waitForEvent('download');
+await page.getByRole('button', { name: '覆盖并恢复', exact: true }).click();
+await safetyDownload;
+await expect(page.getByText('恢复成功：2 个账户，1 条流水', { exact: true })).toBeVisible();
+await waitBalances([70, 10]);
+await expect.poll(async () => (await snapshot()).settings.theme).toBe('light');
+await page.reload({ waitUntil: 'networkidle' });
+await waitBalances([70, 10]);
+
+for (const width of [360, 390, 768]) {
+  await page.setViewportSize({ width, height: 844 });
+  for (const name of ['首页', '账户', '交易', '报表', '设置']) {
+    await tab(name);
+    await expect(page.locator('.topbar h2')).toHaveText(name);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(page.locator('.error-banner')).toHaveCount(0);
+  }
+}
+return { passed: true, widths: [360, 390, 768], scenarios: ['accounts', 'expense', 'edit', 'transfer', 'paired delete', 'theme', 'JSON export', 'restore with safety copy', 'reload', 'navigation'] };

@@ -79,6 +79,7 @@ The shared Vue UI has two data paths: **Nuxt / Nitro → SQLite** for Web, and *
 | --- | --- |
 | [Architecture](docs/architecture.md) | Data paths, source layout, storage, API, compatibility |
 | [Development](docs/development.md) | Setup, tests, builds, releases, contribution checklist |
+| [Mobile regression](docs/mobile-regression.md) | Repeatable narrow-screen scenario and Android device checklist |
 | [简体中文](README.zh-CN.md) | Chinese overview and quick start |
 
 Built with Nuxt 4, Vue 3, TypeScript, Tauri 2, Rust, and SQLite. Bug reports and focused contributions are welcome via [Issues](https://github.com/bcielai321/PocketLedger/issues) and [Pull requests](https://github.com/bcielai321/PocketLedger/pulls).

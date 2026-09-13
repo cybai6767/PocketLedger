@@ -32,9 +32,9 @@ const tabs = [
 ] as const
 
 const isTauri = Boolean(useRuntimeConfig().public.tauri)
-const initialRequest = isTauri
-  ? await useAsyncData<LedgerSnapshot>('ledger-snapshot', loadSnapshot, { server: false })
-  : await useFetch<LedgerSnapshot>('/api/ledger', { key: 'ledger-snapshot' })
+const initialRequest = await useAsyncData<LedgerSnapshot>(
+  'ledger-snapshot', loadSnapshot, { server: !isTauri },
+)
 const { data, error, status, refresh } = initialRequest
 
 watch(data, snapshot => {

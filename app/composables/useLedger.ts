@@ -1,4 +1,6 @@
 import { computed } from 'vue'
+import { createHttpLedgerBackend } from '../services/ledger/http'
+import { createTauriLedgerBackend } from '../services/ledger/tauri'
 import type {
   Account,
   AccountInput,
@@ -7,12 +9,10 @@ import type {
   LedgerBackup,
   LedgerSnapshot,
   Settings,
-  Transaction,
   TransactionInput,
-  TransactionMutationResult,
   TransferInput,
-} from '~~/shared/types/ledger'
-import { DEFAULT_SETTINGS } from '~~/shared/types/ledger'
+} from '../../shared/types/ledger'
+import { DEFAULT_SETTINGS } from '../../shared/types/ledger'
 
 export type TabKey = 'dashboard' | 'accounts' | 'transactions' | 'reports' | 'settings'
 
@@ -50,7 +50,9 @@ function errorMessage(error: unknown): string {
 
 export function useLedger() {
   const config = useRuntimeConfig()
-  const isTauri = Boolean(config.public.tauri)
+  const backend = config.public.tauri
+    ? createTauriLedgerBackend()
+    : createHttpLedgerBackend($fetch)
   const state = useState<LedgerSnapshot>('ledger', emptySnapshot)
   const activeTab = useState<TabKey>('active-tab', () => 'dashboard')
   const lastError = useState<string | null>('ledger-error', () => null)
@@ -84,21 +86,8 @@ export function useLedger() {
     }
   }
 
-  async function invokeMobile<T>(command: string, args?: Record<string, unknown>): Promise<T> {
-    const { invoke } = await import('@tauri-apps/api/core')
-    return invoke<T>(command, args)
-  }
-
-  async function loadSnapshot(): Promise<LedgerSnapshot> {
-    if (isTauri) return invokeMobile<LedgerSnapshot>('get_snapshot')
-    return $fetch<LedgerSnapshot>('/api/ledger')
-  }
-
-  async function loadLatestAutomaticBackup(): Promise<LedgerBackup | null> {
-    return isTauri
-      ? invokeMobile<LedgerBackup | null>('get_latest_automatic_backup')
-      : $fetch<LedgerBackup | null>('/api/ledger/automatic-backup')
-  }
+  const loadSnapshot = backend.loadSnapshot
+  const loadLatestAutomaticBackup = backend.loadLatestAutomaticBackup
 
   function setTab(key: TabKey) {
     activeTab.value = key
@@ -128,18 +117,14 @@ export function useLedger() {
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
   async function addAccount(input: AccountInput): Promise<boolean> {
-    const account = await mutate(() => isTauri
-      ? invokeMobile<Account>('create_account', { input })
-      : $fetch<Account>('/api/accounts', { method: 'POST', body: input }))
+    const account = await mutate(() => backend.addAccount(input))
     if (!account) return false
     state.value.accounts.push(account)
     return true
   }
 
   async function updateAccount(id: number, input: AccountInput): Promise<boolean> {
-    const account = await mutate(() => isTauri
-      ? invokeMobile<Account>('update_account', { id, input })
-      : $fetch<Account>(`/api/accounts/${id}`, { method: 'PUT', body: input }))
+    const account = await mutate(() => backend.updateAccount(id, input))
     if (!account) return false
     const index = state.value.accounts.findIndex(item => item.id === id)
     if (index >= 0) state.value.accounts[index] = account
@@ -147,9 +132,7 @@ export function useLedger() {
   }
 
   async function removeAccount(id: number): Promise<boolean> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<{ ok: boolean }>('delete_account', { id })
-      : $fetch<{ ok: boolean }>(`/api/accounts/${id}`, { method: 'DELETE' }))
+    const result = await mutate(() => backend.removeAccount(id))
     if (!result) return false
     state.value.accounts = state.value.accounts.filter(account => account.id !== id)
     state.value.transactions = state.value.transactions.filter(transaction => transaction.accountId !== id)
@@ -157,21 +140,14 @@ export function useLedger() {
   }
 
   async function reorderAccounts(ids: number[]): Promise<boolean> {
-    const accounts = await mutate(() => isTauri
-      ? invokeMobile<Account[]>('reorder_accounts', { ids })
-      : $fetch<Account[]>('/api/accounts/reorder', { method: 'PUT', body: { ids } }))
+    const accounts = await mutate(() => backend.reorderAccounts(ids))
     if (!accounts) return false
     state.value.accounts = accounts
     return true
   }
 
   async function addTransaction(input: TransactionInput): Promise<boolean> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<{ transaction: Transaction, account: Account }>('create_transaction', { input })
-      : $fetch<{ transaction: Transaction, account: Account }>(
-          '/api/transactions',
-          { method: 'POST', body: input },
-        ))
+    const result = await mutate(() => backend.addTransaction(input))
     if (!result) return false
     state.value.transactions.unshift(result.transaction)
     replaceAccount(result.account)
@@ -179,9 +155,7 @@ export function useLedger() {
   }
 
   async function removeTransaction(id: number): Promise<boolean> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<TransactionMutationResult>('delete_transaction', { id })
-      : $fetch<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'DELETE' }))
+    const result = await mutate(() => backend.removeTransaction(id))
     if (!result) return false
     const removedIds = new Set(result.transactions.map(transaction => transaction.id))
     state.value.transactions = state.value.transactions.filter(transaction => !removedIds.has(transaction.id))
@@ -190,9 +164,7 @@ export function useLedger() {
   }
 
   async function editTransaction(id: number, input: TransactionInput): Promise<boolean> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<TransactionMutationResult>('update_transaction', { id, input })
-      : $fetch<TransactionMutationResult>(`/api/transactions/${id}`, { method: 'PUT', body: input }))
+    const result = await mutate(() => backend.editTransaction(id, input))
     if (!result) return false
     const updated = result.transactions[0]!
     const index = state.value.transactions.findIndex(transaction => transaction.id === updated.id)
@@ -203,9 +175,7 @@ export function useLedger() {
   }
 
   async function addTransfer(input: TransferInput): Promise<boolean> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<TransactionMutationResult>('create_transfer', { input })
-      : $fetch<TransactionMutationResult>('/api/transfers', { method: 'POST', body: input }))
+    const result = await mutate(() => backend.addTransfer(input))
     if (!result) return false
     state.value.transactions.unshift(...result.transactions.reverse())
     result.accounts.forEach(replaceAccount)
@@ -213,9 +183,7 @@ export function useLedger() {
   }
 
   async function checkBalanceIntegrity(repair = false): Promise<BalanceCheck | undefined> {
-    const result = await mutate(() => isTauri
-      ? invokeMobile<BalanceCheck>(repair ? 'repair_balances' : 'check_balances')
-      : $fetch<BalanceCheck>('/api/ledger/integrity', { method: repair ? 'POST' : 'GET' }))
+    const result = await mutate(() => backend.checkBalanceIntegrity(repair))
     if (result?.repaired) hydrate(await loadSnapshot())
     return result
   }
@@ -229,9 +197,7 @@ export function useLedger() {
     const previous = { ...state.value.settings }
     const next = { ...previous, ...patch }
     state.value.settings = next
-    const settings = await mutate(() => isTauri
-      ? invokeMobile<Settings>('update_settings', { settings: next })
-      : $fetch<Settings>('/api/settings', { method: 'PUT', body: next }))
+    const settings = await mutate(() => backend.updateSettings(next))
     if (!settings) {
       state.value.settings = previous
       return false
@@ -241,18 +207,14 @@ export function useLedger() {
   }
 
   async function clearAll(): Promise<boolean> {
-    const snapshot = await mutate(() => isTauri
-      ? invokeMobile<LedgerSnapshot>('clear_ledger')
-      : $fetch<LedgerSnapshot>('/api/ledger', { method: 'DELETE' }))
+    const snapshot = await mutate(() => backend.clearAll())
     if (!snapshot) return false
     hydrate(snapshot)
     return true
   }
 
   async function restoreBackup(backup: LedgerBackup): Promise<boolean> {
-    const snapshot = await mutate(() => isTauri
-      ? invokeMobile<LedgerSnapshot>('restore_ledger', { backup })
-      : $fetch<LedgerSnapshot>('/api/ledger/restore', { method: 'POST', body: backup }))
+    const snapshot = await mutate(() => backend.restoreBackup(backup))
     if (!snapshot) return false
     hydrate(snapshot)
     return true

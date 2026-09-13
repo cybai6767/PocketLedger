@@ -1,0 +1,21 @@
+{
+  "accounts": [
+    { "name": "现金", "type": "cash", "currency": "CNY", "balance": 100 },
+    { "name": "钱包", "type": "wallet", "currency": "CNY", "balance": 10 },
+    { "name": "美元", "type": "bank", "currency": "USD", "balance": 5 }
+  ],
+  "transactions": [
+    { "date": "2026-09-12", "type": "income", "accountId": 1, "amount": 0.1, "category": "其他" },
+    { "date": "2026-09-12", "type": "income", "accountId": 1, "amount": 0.2, "category": "其他" },
+    { "date": "2026-09-12", "type": "expense", "accountId": 1, "amount": 20, "category": "餐饮" }
+  ],
+  "edit": {
+    "id": 3,
+    "input": { "date": "2026-09-12", "type": "expense", "accountId": 2, "amount": 30, "category": "餐饮" }
+  },
+  "transfer": { "date": "2026-09-12", "fromAccountId": 1, "toAccountId": 2, "amount": 25 },
+  "invalidTransfer": { "date": "2026-09-12", "fromAccountId": 1, "toAccountId": 3, "amount": 1 },
+  "afterEdit": [100.3, -20, 5],
+  "afterTransfer": [75.3, 5, 5],
+  "afterDelete": [100.3, -20, 5]
+}

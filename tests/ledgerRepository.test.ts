@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BetterSqlite3 from 'better-sqlite3'
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -263,12 +263,15 @@ describe('ledger repository', () => {
     expect(getSnapshot(database).settings).toEqual({ baseCurrency: 'CNY', masked: false, theme: 'light' })
   })
 
-  it('keeps only the seven newest automatic JSON backups', () => {
+  it('keeps the newest seven backups when the clock is frozen or moves backwards', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-12T00:00:00Z'))
     const directory = mkdtempSync(join(tmpdir(), 'accounting-tool-backup-'))
     const filename = join(directory, 'ledger.sqlite')
     const fileDatabase = openLedgerDatabase(filename)
     try {
       for (let index = 0; index < 8; index += 1) {
+        if (index === 4) vi.setSystemTime(new Date('2026-09-11T00:00:00Z'))
         createAccount(fileDatabase, {
           name: `账户${index}`, type: 'cash', currency: 'CNY', balance: index,
         })
@@ -281,6 +284,7 @@ describe('ledger repository', () => {
       expect(readLatestAutomaticBackup(fileDatabase)?.data.accounts).toHaveLength(7)
     }
     finally {
+      vi.useRealTimers()
       fileDatabase.close()
       rmSync(directory, { recursive: true, force: true })
     }
