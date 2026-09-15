@@ -9,10 +9,10 @@
 支持 Web、Windows 和 Android 的个人记账工具。
 管理账户、记录收支、查看资产变化，桌面与 Android 端可离线使用。
 
-[![质量检查](https://github.com/bcielai321/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/bcielai321/PocketLedger/actions/workflows/quality.yml)
-[![最新版本](https://img.shields.io/github/v/release/bcielai321/PocketLedger)](https://github.com/bcielai321/PocketLedger/releases/latest)
+[![质量检查](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
+[![最新版本](https://img.shields.io/github/v/release/cybai6767/PocketLedger)](https://github.com/cybai6767/PocketLedger/releases/latest)
 
-[下载安装](https://github.com/bcielai321/PocketLedger/releases/latest) · [快速开始](#快速开始) · [架构说明](docs/architecture.md) · [English](README.md)
+[下载安装](https://github.com/cybai6767/PocketLedger/releases/latest) · [快速开始](#快速开始) · [架构说明](docs/architecture.md) · [English](README.md)
 
 </div>
 
@@ -35,8 +35,8 @@
 
 | 平台 | 使用方式 | 数据位置 |
 | --- | --- | --- |
-| Windows x64 | 从 [Releases](https://github.com/bcielai321/PocketLedger/releases/latest) 下载 `.exe` 安装包。 | 电脑应用数据目录 |
-| Android ARM64 | 从 [Releases](https://github.com/bcielai321/PocketLedger/releases/latest) 下载正式版 `.apk`。 | 手机应用数据目录 |
+| Windows x64 | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载 `.exe` 安装包。 | 电脑应用数据目录 |
+| Android ARM64 | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载正式版 `.apk`。 | 手机应用数据目录 |
 | Web / 自部署 | 使用下面的 Node.js 或 Docker 方式启动。 | 服务器 SQLite |
 
 安装后的应用及发布文件使用中文名称“口袋账本”，项目和仓库继续使用英文名称 PocketLedger。
@@ -46,7 +46,7 @@
 要求 Node.js **22.x 的 22.19 及以上、24.x 的 24.11 及以上，或 26 及以上**。
 
 ```bash
-git clone https://github.com/bcielai321/PocketLedger.git
+git clone https://github.com/cybai6767/PocketLedger.git
 cd PocketLedger
 npm ci
 npm run dev
@@ -80,4 +80,4 @@ docker compose up --build -d
 | [开发指南（英文）](docs/development.md) | 环境准备、测试、构建、发布与贡献检查 |
 | [移动端回归（英文）](docs/mobile-regression.md) | 可重复运行的窄屏场景和 Android 真机检查清单 |
 
-技术栈为 Nuxt 4、Vue 3、TypeScript、Tauri 2、Rust 和 SQLite。欢迎通过 [Issues](https://github.com/bcielai321/PocketLedger/issues) 反馈问题，或提交范围明确的 [Pull Request](https://github.com/bcielai321/PocketLedger/pulls)。
+技术栈为 Nuxt 4、Vue 3、TypeScript、Tauri 2、Rust 和 SQLite。欢迎通过 [Issues](https://github.com/cybai6767/PocketLedger/issues) 反馈问题，或提交范围明确的 [Pull Request](https://github.com/cybai6767/PocketLedger/pulls)。

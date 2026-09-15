@@ -9,10 +9,10 @@
 A personal finance tracker for Web, Windows, and Android.
 Track accounts, record expenses, and explore your finances—with offline storage on desktop and Android.
 
-[![Quality checks](https://github.com/bcielai321/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/bcielai321/PocketLedger/actions/workflows/quality.yml)
-[![Latest release](https://img.shields.io/github/v/release/bcielai321/PocketLedger)](https://github.com/bcielai321/PocketLedger/releases/latest)
+[![Quality checks](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
+[![Latest release](https://img.shields.io/github/v/release/cybai6767/PocketLedger)](https://github.com/cybai6767/PocketLedger/releases/latest)
 
-[Download](https://github.com/bcielai321/PocketLedger/releases/latest) · [Quick start](#quick-start) · [Architecture](docs/architecture.md) · [简体中文](README.zh-CN.md)
+[Download](https://github.com/cybai6767/PocketLedger/releases/latest) · [Quick start](#quick-start) · [Architecture](docs/architecture.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -35,8 +35,8 @@ Track accounts, record expenses, and explore your finances—with offline storag
 
 | Platform | Start here | Data location |
 | --- | --- | --- |
-| Windows x64 | Download the `.exe` installer from [Releases](https://github.com/bcielai321/PocketLedger/releases/latest). | Your computer's application data directory |
-| Android ARM64 | Download the release `.apk` from [Releases](https://github.com/bcielai321/PocketLedger/releases/latest). | Your device's application data directory |
+| Windows x64 | Download the `.exe` installer from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your computer's application data directory |
+| Android ARM64 | Download the release `.apk` from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your device's application data directory |
 | Web / self-hosted | Use Node.js or Docker below. | SQLite on your server |
 
 The installed application and release files use the Chinese product name **口袋账本**. The project and repository continue to use the international name **PocketLedger**.
@@ -46,7 +46,7 @@ The installed application and release files use the Chinese product name **口�
 Use Node.js **22.19+ within 22.x, 24.11+ within 24.x, or 26+**.
 
 ```bash
-git clone https://github.com/bcielai321/PocketLedger.git
+git clone https://github.com/cybai6767/PocketLedger.git
 cd PocketLedger
 npm ci
 npm run dev
@@ -81,4 +81,4 @@ The shared Vue UI has two data paths: **Nuxt / Nitro → SQLite** for Web, and *
 | [Mobile regression](docs/mobile-regression.md) | Repeatable narrow-screen scenario and Android device checklist |
 | [简体中文](README.zh-CN.md) | Chinese overview and quick start |
 
-Built with Nuxt 4, Vue 3, TypeScript, Tauri 2, Rust, and SQLite. Bug reports and focused contributions are welcome via [Issues](https://github.com/bcielai321/PocketLedger/issues) and [Pull requests](https://github.com/bcielai321/PocketLedger/pulls).
+Built with Nuxt 4, Vue 3, TypeScript, Tauri 2, Rust, and SQLite. Bug reports and focused contributions are welcome via [Issues](https://github.com/cybai6767/PocketLedger/issues) and [Pull requests](https://github.com/cybai6767/PocketLedger/pulls).
