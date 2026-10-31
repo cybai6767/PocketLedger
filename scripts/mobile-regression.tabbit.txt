@@ -62,7 +62,7 @@ await waitBalances([70, 10]);
 
 for (const width of [360, 390, 768]) {
   await page.setViewportSize({ width, height: 844 });
-  for (const name of ['首页', '账户', '交易', '报表', '设置']) {
+  for (const name of ['首页', '账户', '交易', '设置']) {
     await tab(name);
     await expect(page.locator('.topbar h2')).toHaveText(name);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

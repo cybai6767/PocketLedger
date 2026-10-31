@@ -12,7 +12,7 @@
 [![质量检查](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
 [![最新版本](https://img.shields.io/github/v/release/cybai6767/PocketLedger)](https://github.com/cybai6767/PocketLedger/releases/latest)
 
-[下载安装](https://github.com/cybai6767/PocketLedger/releases/latest) · [快速开始](#快速开始) · [架构说明](docs/architecture.md) · [English](README.md)
+[下载安装](https://github.com/cybai6767/PocketLedger/releases/latest) · [快速开始](#快速开始) · [更新内容](RELEASE_NOTES.md) · [架构说明](docs/architecture.md) · [English](README.md)
 
 </div>
 
@@ -20,16 +20,17 @@
 
 | 离线也能记账 | 收支一目了然 | 数据可以带走 |
 | --- | --- | --- |
-| Windows 和 Android 使用设备本机 SQLite 保存账本。 | 查看净资产、本月收支和最近 12 个月趋势。 | 导出 JSON、CSV 或 Excel，通过 JSON 恢复完整账本。 |
+| Windows 和 Android 使用设备本机 SQLite 保存账本。 | 按月查看收入、支出、结余，结合全年对比、每日花费和分类排行了解资金去向。 | 导出 JSON、CSV 或 Excel，通过 JSON 恢复完整账本。 |
 
 ## 主要功能
 
 - **账户管理：**现金、银行卡、信用卡、投资、负债、钱包等账户，支持编辑与排序。
 - **收支记录：**新增、修改、删除流水，按账户筛选和关键词搜索。
 - **账户转账：**新增、修改和删除同币种账户之间的原子转账，不计入普通收入或支出统计。
-- **财务报表：**净资产、本月收支、分类报表和趋势；支持 CNY、HKD、USD、EUR、USDT、BTC。
+- **财务报表：**首页月度账单支持切换月份，直接查看收入、支出、结余、结余率和支出环比；提供全年收支对比、每月明细、每日花费和分类排行。结余与当前净资产分开显示，支持 CNY、HKD、USD、EUR、USDT、BTC。
 - **数据保护：**修改前自动快照、余额检查与修复、数据库版本迁移、事务性 JSON 恢复。
 - **个性设置：**完整界面与导出内容可切换简体中文或英文，并支持明暗主题、金额遮罩和基准币种。
+- **清晰导航：**首页、账户、交易、设置四个入口；Android 使用底部导航，桌面和 Web 保留原有导航布局。资产与本月收支汇总卡仅在首页显示。
 
 ## 下载与使用
 

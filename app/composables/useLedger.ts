@@ -14,7 +14,7 @@ import type {
 } from '../../shared/types/ledger'
 import { DEFAULT_SETTINGS } from '../../shared/types/ledger'
 
-export type TabKey = 'dashboard' | 'accounts' | 'transactions' | 'reports' | 'settings'
+export type TabKey = 'dashboard' | 'accounts' | 'transactions' | 'settings'
 
 const RATES_TO_CNY: Record<Currency, number> = {
   CNY: 1,

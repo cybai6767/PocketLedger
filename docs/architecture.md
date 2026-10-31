@@ -20,18 +20,23 @@ flowchart TD
 
 `NUXT_TAURI=true` or a Tauri platform environment selects the client build. Nuxt disables SSR and generates `.output/public`; Tauri embeds those static assets, not Nitro or the server database.
 
-Five dynamically selected components provide navigation. `useLedger` uses Nuxt `useState`, computes summaries, and selects a `LedgerBackend` once when created. Each operation delegates to that interface. The HTTP adapter preserves API methods and payloads; the Tauri adapter lazily loads native IPC. Initial loading uses the same backend, with SSR enabled only for Web.
+Four dynamically selected components provide navigation: dashboard, accounts, transactions, and settings. The dashboard includes income/expense trends and category charts below the account overview and asset allocation. `useLedger` uses Nuxt `useState`, computes summaries, and selects a `LedgerBackend` once when created. Each operation delegates to that interface. The HTTP adapter preserves API methods and payloads; the Tauri adapter lazily loads native IPC. Initial loading uses the same backend, with SSR enabled only for Web.
+
+Asset and monthly income/expense summary cards appear only on the dashboard. Native mobile builds select a safe-area-aware bottom navigation bar using `TAURI_ENV_PLATFORM`; Web and desktop builds retain their existing sidebar/responsive navigation.
+
+Dashboard reports provide a selectable monthly statement, annual income/expense bars, daily spending, ranked categories, and explicit monthly totals. Surplus means income minus expenses in the selected month, not a historical account balance; current net worth is labeled separately. Transfers are excluded, and displayed amounts, chart labels, and tooltips respect amount masking.
 
 ## Source map
 
 | Location | Responsibility |
 | --- | --- |
 | `app/app.vue` | Application shell and navigation |
-| `app/components/` | Dashboard, accounts, transactions, reports, settings |
+| `app/components/` | Dashboard with ledger charts, accounts, transactions, settings |
 | `app/composables/useLedger.ts` | State, statistics, errors, and backend selection |
 | `app/composables/useLocale.ts` | Reactive Chinese/English UI messages and interpolation |
 | `app/services/ledger/` | Backend contract, HTTP adapter, Tauri adapter |
 | `app/utils/ledgerBackup.ts` | Export formats, backup parsing, browser/native file access |
+| `app/utils/ledgerReports.ts` | Shared monthly/yearly totals, daily spending, category rankings, and period navigation |
 | `server/api/` | Nitro HTTP handlers |
 | `server/utils/` | SQLite, migrations, validation, business operations |
 | `shared/types/ledger.ts` | TypeScript models and schema/backup constants |
@@ -56,7 +61,7 @@ Money is stored as decimal text. TypeScript uses `decimal.js` and Rust uses `rus
 balance = opening balance + income − expenses
 ```
 
-Frontend totals and conversions still use JavaScript numbers and fixed demonstration rates. Transfers create linked entries transactionally and are excluded from ordinary income/expense summaries. Accounts with linked transactions cannot be deleted through the business layer.
+Dashboard totals and currency conversions use JavaScript numbers and fixed demonstration rates; monthly reports accumulate converted amounts with `decimal.js`. Transfers create linked entries transactionally and are excluded from ordinary income/expense summaries. Accounts with linked transactions cannot be deleted through the business layer.
 
 Web defaults to `data/accounting.sqlite`, overridden by `NUXT_DATABASE_PATH`. Tauri uses its application data directory. The application identifier remains unchanged after rebranding to preserve the data location.
 

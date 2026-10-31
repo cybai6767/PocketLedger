@@ -1,4 +1,5 @@
 const isTauriBuild = process.env.NUXT_TAURI === 'true' || Boolean(process.env.TAURI_ENV_PLATFORM)
+const isMobileAppBuild = isTauriBuild && ['android', 'ios'].includes(process.env.TAURI_ENV_PLATFORM ?? '')
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-23',
@@ -8,6 +9,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       tauri: isTauriBuild,
+      mobileApp: isMobileAppBuild,
     },
   },
   typescript: {

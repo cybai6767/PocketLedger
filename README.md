@@ -12,7 +12,7 @@ Track accounts, record expenses, and explore your finances—with offline storag
 [![Quality checks](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
 [![Latest release](https://img.shields.io/github/v/release/cybai6767/PocketLedger)](https://github.com/cybai6767/PocketLedger/releases/latest)
 
-[Download](https://github.com/cybai6767/PocketLedger/releases/latest) · [Quick start](#quick-start) · [Architecture](docs/architecture.md) · [简体中文](README.zh-CN.md)
+[Download](https://github.com/cybai6767/PocketLedger/releases/latest) · [Quick start](#quick-start) · [Updates](RELEASE_NOTES.md) · [Architecture](docs/architecture.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -20,16 +20,17 @@ Track accounts, record expenses, and explore your finances—with offline storag
 
 | Keep your ledger close | See the bigger picture | Take your data with you |
 | --- | --- | --- |
-| Record transactions offline on Windows and Android with on-device SQLite. | Review net worth, monthly income and expenses, and a 12-month trend. | Export JSON, CSV, or Excel; restore a complete ledger from JSON. |
+| Record transactions offline on Windows and Android with on-device SQLite. | Review monthly income, expenses, and surplus alongside annual comparisons, daily spending, and category rankings. | Export JSON, CSV, or Excel; restore a complete ledger from JSON. |
 
 ## Features
 
 - **Accounts:** cash, bank, credit, investment, debt, wallet, and other accounts; editing and ordering.
 - **Transactions:** add, edit, delete, search, and filter income and expenses by account.
 - **Transfers:** create, edit, and delete transfers between same-currency accounts without counting them as income or expenses.
-- **Reports:** net worth, monthly totals, spending categories, and trends. Supports CNY, HKD, USD, EUR, USDT, and BTC.
+- **Reports:** selectable monthly statements with income, expenses, surplus, savings rate, and expense comparisons; annual charts, explicit monthly totals, daily spending, and category rankings. Monthly surplus and current net worth are labeled separately. Supports CNY, HKD, USD, EUR, USDT, and BTC.
 - **Data protection:** automatic pre-change snapshots, balance checks and repairs, versioned migrations, and transactional JSON restore.
 - **Preferences:** switch the complete interface and exports between English and Simplified Chinese, plus light/dark themes, amount masking, and a preferred base currency.
+- **Navigation:** Home, Accounts, Transactions, and Settings, with bottom navigation on Android and the existing layouts on desktop and Web. Net worth and current-month summary cards appear only on Home.
 
 ## Get PocketLedger
 

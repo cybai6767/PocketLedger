@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import LedgerCharts from './LedgerCharts.vue'
 import { ACCOUNT_TYPE_LABELS, ACCOUNT_TYPE_LABELS_EN, CURRENCY_SYMBOLS } from '~~/shared/types/ledger'
 
 const { state, setTab, toBase } = useLedger()
@@ -74,6 +75,8 @@ function arc(start: number, end: number) {
     </section>
   </div>
 
+  <LedgerCharts />
+
   <div class="overview">
     <button class="primary" @click="setTab('accounts')">{{ t('dashboard.newAccount') }}</button>
     <button class="accent" @click="setTab('transactions')">{{ t('dashboard.newTransaction') }}</button>
@@ -81,14 +84,15 @@ function arc(start: number, end: number) {
 </template>
 
 <style scoped>
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
 .panel {
+  min-width: 0;
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 12px; padding: 18px;
 }
 h3 { margin: 0 0 14px; }
 
-/* 两张卡片下方、水平居中的操作按钮 */
+/* 首页内容下方、水平居中的操作按钮 */
 .overview {
   display: flex; gap: 12px;
   justify-content: center;
