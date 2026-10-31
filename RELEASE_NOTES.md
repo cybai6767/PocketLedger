@@ -2,6 +2,8 @@
 
 本次更新重新整理首页、报表、设置页和 Android 导航，让每个月的花费与结余可以直接查看。
 
+> **Android 升级必读：**旧发布密钥随旧 Windows 系统重装未找回，本版启用新签名。已安装 v1.0.4 或更早正式版的用户，请先导出完整 JSON 备份，再卸载旧版、安装 v1.0.5 并恢复备份；无法直接覆盖安装。后续版本将沿用本次新密钥。
+
 ## 更新内容
 
 - 新增 Linux AMD64 DEB 安装包，适用于 Ubuntu 24.04 及以上；Windows、Android、Linux 安装包统一发布。
@@ -32,7 +34,7 @@ Ubuntu 下载后，在文件所在目录运行：
 sudo apt install ./PocketLedger-v1.0.5-linux-amd64.deb
 ```
 
-Release 同时提供 `SHA256SUMS.txt`。Android APK 使用项目原有发布密钥签名，可覆盖安装此前使用同一密钥的正式版。Windows 安装包尚未使用商业 Authenticode 证书。
+Release 同时提供 `SHA256SUMS.txt`。Android APK 自 v1.0.5 起使用新发布密钥签名；旧版升级请按上方步骤先备份、卸载、重装并恢复。Windows 安装包尚未使用商业 Authenticode 证书。
 
 ## 升级与兼容
 

@@ -41,6 +41,8 @@ Track accounts, record expenses, and explore your finances—with offline storag
 | Android ARM64 | Download the release `.apk` from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your device's application data directory |
 | Web / self-hosted | Use Node.js or Docker below. | SQLite on your server |
 
+Android v1.0.5 uses a new release signing key. Export a complete JSON backup before uninstalling an older release, then install the new APK and restore the backup. See [release notes](RELEASE_NOTES.md).
+
 The installed application uses the Chinese product name **口袋账本**. Release filenames use **PocketLedger** with platform and architecture labels.
 
 ## Quick start
