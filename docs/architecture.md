@@ -20,11 +20,11 @@ flowchart TD
 
 `NUXT_TAURI=true` or a Tauri platform environment selects the client build. Nuxt disables SSR and generates `.output/public`; Tauri embeds those static assets, not Nitro or the server database.
 
-Four dynamically selected components provide navigation: dashboard, accounts, transactions, and settings. The dashboard includes income/expense trends and category charts below the account overview and asset allocation. `useLedger` uses Nuxt `useState`, computes summaries, and selects a `LedgerBackend` once when created. Each operation delegates to that interface. The HTTP adapter preserves API methods and payloads; the Tauri adapter lazily loads native IPC. Initial loading uses the same backend, with SSR enabled only for Web.
+Five dynamically selected components provide navigation: dashboard, reports, transaction entry, accounts, and settings. The dashboard includes a monthly statement below the account overview and asset allocation. `useLedger` uses Nuxt `useState`, computes summaries, and selects a `LedgerBackend` once when created. Each operation delegates to that interface. The HTTP adapter preserves API methods and payloads; the Tauri adapter lazily loads native IPC. Initial loading uses the same backend, with SSR enabled only for Web.
 
 Asset and monthly income/expense summary cards appear only on the dashboard. Native mobile builds select a safe-area-aware bottom navigation bar using `TAURI_ENV_PLATFORM`; Web and desktop builds retain their existing sidebar/responsive navigation.
 
-Dashboard reports provide a selectable monthly statement, annual income/expense bars, daily spending, ranked categories, and explicit monthly totals. Surplus means income minus expenses in the selected month, not a historical account balance; current net worth is labeled separately. Transfers are excluded, and displayed amounts, chart labels, and tooltips respect amount masking.
+Home provides a selectable monthly statement. The five main navigation items are Home, Reports, Add entry, Accounts, and Settings. Add entry contains income/expense entry and transfers. Reports has separate Transactions and Statistics subpages, with Transactions shown by default. Statistics contains annual income/expense bars, daily spending, ranked categories, and monthly totals; Transactions shows the latest eight recorded dates. View more opens months ordered newest first; each month expands to daily entries. Account and keyword filters apply to both views. Day, month, and overall totals use decimal arithmetic and exclude transfers while retaining their entries in details. The selected subpage is retained when opening an entry for editing and returning to Reports. Home and Reports share a year/month picker and selected period; editing a report transaction opens the Add entry page with the record prefilled. The Add entry component is cached across navigation to retain unsaved drafts. Surplus means income minus expenses in the selected month, not a historical account balance; current net worth is labeled separately. Transfers are excluded, and displayed amounts, chart labels, and tooltips respect amount masking.
 
 ## Source map
 
@@ -36,6 +36,7 @@ Dashboard reports provide a selectable monthly statement, annual income/expense 
 | `app/composables/useLocale.ts` | Reactive Chinese/English UI messages and interpolation |
 | `app/services/ledger/` | Backend contract, HTTP adapter, Tauri adapter |
 | `app/utils/ledgerBackup.ts` | Export formats, backup parsing, browser/native file access |
+| `app/utils/ledgerHistory.ts` | Date/month grouping, latest eight recorded dates, and transfer-aware decimal totals |
 | `app/utils/ledgerReports.ts` | Shared monthly/yearly totals, daily spending, category rankings, and period navigation |
 | `server/api/` | Nitro HTTP handlers |
 | `server/utils/` | SQLite, migrations, validation, business operations |
@@ -74,9 +75,9 @@ Web defaults to `data/accounting.sqlite`, overridden by `NUXT_DATABASE_PATH`. Ta
 - Version 3 adds the persisted interface language; existing databases and older JSON backups default to Simplified Chinese.
 - JSON restore validates versions, IDs, currencies, and relationships, then replaces the ledger transactionally. The UI requires saving the current ledger before proceeding.
 - Automatic pre-change JSON snapshots live in `automatic-backups` next to the Web database or inside the Tauri app data directory. Seven files are retained; amounts are unmasked.
-- JSON is the full restore format. Excel exports contain explanation, accounts, transactions, and settings sheets; CSV distinguishes record types. Neither supports import yet.
+- JSON is the preferred full restore format. PocketLedger CSV/Excel can also be restored; newly exported spreadsheets preserve transfer IDs. Suishouji income/expense sheets are supported. Selected files can be merged before restore, preserving transfer pairs and remapping colliding IDs. Old spreadsheets without transfer IDs cannot reliably recreate relationships.
 
-There is no automatic sync, merge restore, or legacy MySQL importer. The previous Spring Boot implementation remains in Git history; old MySQL data requires a separately designed migration.
+There is no automatic sync, merge into the currently open ledger, or legacy MySQL importer. The previous Spring Boot implementation remains in Git history; old MySQL data requires a separately designed migration.
 
 ## HTTP API
 

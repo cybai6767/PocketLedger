@@ -14,7 +14,7 @@ import type {
 } from '../../shared/types/ledger'
 import { DEFAULT_SETTINGS } from '../../shared/types/ledger'
 
-export type TabKey = 'dashboard' | 'accounts' | 'transactions' | 'settings'
+export type TabKey = 'dashboard' | 'reports' | 'transactions' | 'accounts' | 'settings'
 
 const RATES_TO_CNY: Record<Currency, number> = {
   CNY: 1,
@@ -55,6 +55,8 @@ export function useLedger() {
     : createHttpLedgerBackend($fetch)
   const state = useState<LedgerSnapshot>('ledger', emptySnapshot)
   const activeTab = useState<TabKey>('active-tab', () => 'dashboard')
+  const transactionEditorId = useState<number | null>('transaction-editor-id', () => null)
+  const snapshotVersion = useState<number>('ledger-snapshot-version', () => 0)
   const lastError = useState<string | null>('ledger-error', () => null)
   const pendingCount = useState<number>('ledger-pending', () => 0)
 
@@ -65,6 +67,8 @@ export function useLedger() {
     state.value.accounts = snapshot.accounts
     state.value.transactions = snapshot.transactions
     state.value.settings = snapshot.settings
+    transactionEditorId.value = null
+    snapshotVersion.value += 1
   }
 
   function setError(message: string | null) {
@@ -96,6 +100,12 @@ export function useLedger() {
 
   function setTab(key: TabKey) {
     activeTab.value = key
+  }
+
+  function openTransactionEditor(id: number) {
+    if (!state.value.transactions.some(transaction => transaction.id === id)) return
+    transactionEditorId.value = id
+    setTab('transactions')
   }
 
   function toBase(amount: number, from: Currency): number {
@@ -245,6 +255,8 @@ export function useLedger() {
   return {
     state: state.value,
     activeTab,
+    transactionEditorId,
+    snapshotVersion,
     lastError,
     busy,
     base,
@@ -256,6 +268,7 @@ export function useLedger() {
     loadLatestAutomaticBackup,
     setError,
     setTab,
+    openTransactionEditor,
     toBase,
     addAccount,
     updateAccount,

@@ -7,7 +7,7 @@ import {
   exportLedgerJson,
   exportLedgerXlsx,
   parseLedgerJson,
-  selectLedgerJson,
+  selectLedgerBackup,
 } from '../utils/ledgerBackup'
 
 const {
@@ -80,7 +80,7 @@ async function chooseBackup() {
   restoreMessage.value = ''
   setError(null)
   try {
-    selectedBackup.value = await selectLedgerJson(isTauri, locale.value)
+    selectedBackup.value = await selectLedgerBackup(isTauri, locale.value, state.settings)
   }
   catch (error) {
     reportRestore(error instanceof Error ? t('backup.readFailed', { error: error.message }) : t('backup.readFailedGeneric'))
@@ -299,7 +299,8 @@ async function inspectBalances(repair = false) {
       <div v-if="selectedBackup" class="restore-preview" role="status">
         <div>
           <strong>{{ t('backup.valid') }}</strong>
-          <p>{{ t('backup.exportedAt', { date: displayDate(selectedBackup.exportedAt) }) }}</p>
+          <p v-if="selectedBackup.sourceLabel">{{ t('backup.source', { source: selectedBackup.sourceLabel }) }}</p>
+          <p v-else>{{ t('backup.exportedAt', { date: displayDate(selectedBackup.exportedAt) }) }}</p>
           <p>{{ t('backup.contains', { accounts: selectedBackup.accountCount, transactions: selectedBackup.transactionCount }) }}</p>
           <p>{{ t('backup.replaces', { accounts: state.accounts.length, transactions: state.transactions.length }) }}</p>
         </div>

@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import Accounts from './components/Accounts.vue'
 import Dashboard from './components/Dashboard.vue'
+import Reports from './components/Reports.vue'
 import Settings from './components/Settings.vue'
 import Transactions from './components/Transactions.vue'
 import type { LedgerSnapshot } from '~~/shared/types/ledger'
@@ -25,8 +26,9 @@ const { locale, t } = useLocale()
 
 const tabs = computed(() => [
   { key: 'dashboard', label: t('tab.dashboard'), icon: '⌂', component: Dashboard },
+  { key: 'reports', label: t('tab.reports'), icon: '▥', component: Reports },
+  { key: 'transactions', label: t('tab.transactions'), icon: '＋', component: Transactions },
   { key: 'accounts', label: t('tab.accounts'), icon: '▣', component: Accounts },
-  { key: 'transactions', label: t('tab.transactions'), icon: '↕', component: Transactions },
   { key: 'settings', label: t('tab.settings'), icon: '⚙', component: Settings },
 ] as const)
 const current = computed(() => tabs.value.find(tab => tab.key === activeTab.value)?.component ?? Dashboard)
@@ -87,17 +89,18 @@ async function retry() {
         <button
           v-for="tab in tabs"
           :key="tab.key"
-          :class="['nav-item', { active: activeTab === tab.key }]"
+          :class="['nav-item', { active: activeTab === tab.key, 'nav-item--record': tab.key === 'transactions' }]"
           :aria-current="activeTab === tab.key ? 'page' : undefined"
           @click="setTab(tab.key)"
         >
           <svg v-if="isMobileApp" class="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path v-if="tab.key === 'dashboard'" d="M3 10l9-7 9 7v10H6V10M9 20v-7h6v7" />
+            <path v-else-if="tab.key === 'reports'" d="M4 20V10m8 10V4m8 16v-7" />
             <template v-else-if="tab.key === 'accounts'">
               <rect x="3" y="5" width="18" height="15" rx="3" />
               <path d="M3 9h18M7 15h4" />
             </template>
-            <path v-else-if="tab.key === 'transactions'" d="M7 3v17m-4-4l4 4 4-4M17 21V4m-4 4l4-4 4 4" />
+            <path v-else-if="tab.key === 'transactions'" d="M12 5v14M5 12h14" />
             <template v-else>
               <path d="M4 7h16M4 17h16" />
               <circle cx="9" cy="7" r="3" /><circle cx="15" cy="17" r="3" />
@@ -162,7 +165,9 @@ async function retry() {
       </section>
 
       <div v-if="status === 'pending' && !data" class="loading-state">{{ t('summary.loading') }}</div>
-      <component :is="current" v-else :key="activeTab" />
+      <KeepAlive v-else :include="['Transactions']">
+        <component :is="current" :key="activeTab" />
+      </KeepAlive>
     </main>
   </div>
 </template>
@@ -254,9 +259,10 @@ nav { display: flex; flex-direction: column; gap: 6px; }
     padding-right: calc(14px + env(safe-area-inset-right));
     padding-left: calc(14px + env(safe-area-inset-left));
   }
-  .sidebar nav { justify-content: space-between; gap: 2px; scrollbar-width: none; }
+  .sidebar nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; scrollbar-width: none; }
   .sidebar nav::-webkit-scrollbar { display: none; }
-  .nav-item { justify-content: center; min-width: 0; padding: 10px 11px; }
+  .nav-item { justify-content: center; min-width: 0; width: 100%; padding: 10px 3px; font-size: 12px; }
+  .nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav-icon, .icon-button span { display: none; }
   .main {
     padding-top: 18px;
@@ -269,12 +275,12 @@ nav { display: flex; flex-direction: column; gap: 6px; }
 }
 
 /* Native mobile apps use a bottom bar; Web and desktop keep their existing navigation. */
-.mobile-app { display: block; --mobile-nav-height: 68px; }
+.mobile-app { display: block; --mobile-nav-height: 76px; }
 .mobile-app .sidebar { display: contents; }
 .mobile-app .brand-row, .mobile-app .server-badge { display: none; }
 .mobile-app .sidebar nav {
   position: fixed; z-index: 50; inset: auto 0 0;
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px;
   min-height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
   padding: 6px calc(10px + env(safe-area-inset-right))
     calc(6px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
@@ -287,6 +293,11 @@ nav { display: flex; flex-direction: column; gap: 6px; }
   border-radius: 12px; text-align: center; font-size: 11px; line-height: 1.3;
 }
 .mobile-app .nav-item:hover { transform: none; }
+.mobile-app .nav-item--record { gap: 2px; padding-block: 2px; }
+.mobile-app .nav-item--record .mobile-nav-icon {
+  width: 36px; height: 36px; padding: 7px; border-radius: 12px;
+  background: var(--accent); color: #fff; box-shadow: 0 3px 10px var(--accent-shadow);
+}
 .mobile-nav-icon {
   display: block; width: 22px; height: 22px; flex: 0 0 auto;
   fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;

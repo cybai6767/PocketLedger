@@ -103,6 +103,7 @@ export interface LedgerBackupPreview {
   accountCount: number
   transactionCount: number
   exportedAt: string
+  sourceLabel?: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {

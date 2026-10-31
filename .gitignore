@@ -18,6 +18,41 @@ coverage
 *.local
 .release/
 
+# Private configuration, signing material and local backups
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.key
+PocketLedger-backup-*
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# Publish installers through Releases, not source control
+*.apk
+*.aab
+*.exe
+*.msi
+*.deb
+*.rpm
+*.AppImage
+*.dmg
+*.zip
+
+# Local tool output and clipboard captures
+/.cache/
+/tmp/
+/artifacts/
+/playwright-report/
+/test-results/
+/.playwright-mcp/
+codex-clipboard-*
+__pycache__/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

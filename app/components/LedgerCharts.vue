@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { CURRENCY_SYMBOLS } from '~~/shared/types/ledger'
+import ReportMonthPicker from './ReportMonthPicker.vue'
 import { buildMonthlyReport, buildYearReports, monthKey, shiftMonth } from '../utils/ledgerReports'
+
+withDefaults(defineProps<{ part?: 'bill' | 'insights' }>(), { part: 'bill' })
 
 const { state, toBase, netWorth } = useLedger()
 const { locale, t } = useLocale()
@@ -30,15 +33,6 @@ function monthName(month: string, full = false) {
   return date.toLocaleDateString(locale.value, full ? { year: 'numeric', month: 'long' } : { month: 'short' })
 }
 
-function changeMonth(event: Event) {
-  const value = (event.target as HTMLInputElement).value
-  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(value) && Number(value.slice(0, 4)) >= 1900) selectedMonth.value = value
-}
-
-function moveMonth(offset: number) {
-  selectedMonth.value = shiftMonth(selectedMonth.value, offset)
-}
-
 const comparison = computed(() => {
   if (state.settings.masked) return '****'
   if (!previous.value.expense) return t(report.value.expense ? 'report.previousEmpty' : 'report.unchanged')
@@ -55,18 +49,13 @@ function monthDescription(item: (typeof annual.value)[number]) {
 
 <template>
   <div class="ledger-reports">
-    <section class="report-panel bill-summary">
+    <section v-if="part === 'bill'" class="report-panel bill-summary">
       <div class="report-heading">
         <div>
           <h3>{{ t('report.monthly') }}</h3>
           <p>{{ t('report.subtitle') }}</p>
         </div>
-        <div class="month-picker">
-          <button class="month-arrow" :aria-label="t('report.previousMonth')" :disabled="selectedMonth === '1900-01'" @click="moveMonth(-1)">‹</button>
-          <input type="month" min="1900-01" max="9999-12" :aria-label="t('report.monthPicker')" :value="selectedMonth" @change="changeMonth">
-          <button class="month-arrow" :aria-label="t('report.nextMonth')" :disabled="selectedMonth === '9999-12'" @click="moveMonth(1)">›</button>
-          <button class="current-month" @click="selectedMonth = monthKey(new Date())">{{ t('report.thisMonth') }}</button>
-        </div>
+        <ReportMonthPicker v-model="selectedMonth" />
       </div>
 
       <div class="bill-period">
@@ -96,13 +85,17 @@ function monthDescription(item: (typeof annual.value)[number]) {
       </div>
     </section>
 
+    <template v-else>
     <section class="report-panel">
       <div class="report-heading">
         <div>
           <h3>{{ t('report.yearTitle', { year }) }}</h3>
           <p>{{ t('report.yearSubtitle') }}</p>
         </div>
-        <div class="chart-legend"><span><i class="expense-dot" />{{ t('transaction.expense') }}</span><span><i class="income-dot" />{{ t('transaction.income') }}</span></div>
+        <div class="report-tools">
+          <ReportMonthPicker v-model="selectedMonth" />
+          <div class="chart-legend"><span><i class="expense-dot" />{{ t('transaction.expense') }}</span><span><i class="income-dot" />{{ t('transaction.income') }}</span></div>
+        </div>
       </div>
       <div class="annual-chart" :aria-label="t('report.yearTitle', { year })">
         <button v-for="item in annual" :key="item.month" class="month-column" :class="{ selected: item.month === selectedMonth }"
@@ -171,22 +164,18 @@ function monthDescription(item: (typeof annual.value)[number]) {
         </button>
       </div>
     </section>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.ledger-reports { display: grid; gap: 16px; min-width: 0; }
+.ledger-reports { display: grid; gap: 16px; min-width: 0; margin-bottom: 16px; }
 .report-panel { min-width: 0; padding: 22px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel); }
 .report-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 h3 { margin: 0 0 6px; font-size: 17px; line-height: 1.4; }
 p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 button { cursor: pointer; }
-.month-picker { display: flex; align-items: center; gap: 6px; max-width: 100%; }
-.month-picker input { width: 145px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--input); color: var(--text); font-size: 13px; }
-.month-arrow, .current-month { min-height: 36px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); }
-.month-arrow { width: 32px; padding: 0; font-size: 22px; }
-.current-month { padding: 6px 10px; font-size: 12px; white-space: nowrap; }
-.month-arrow:hover, .current-month:hover { background: var(--accent-soft); color: var(--accent); }
+.report-tools { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px; max-width: 100%; }
 .bill-period { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; margin: 22px 0 12px; }
 .bill-period strong { font-size: 14px; }
 .bill-period > span { color: var(--muted); font-size: 11px; }
@@ -260,8 +249,7 @@ button { cursor: pointer; }
   .report-panel { padding: 16px; }
   h3 { font-size: 16px; }
   .report-heading { gap: 12px; }
-  .month-picker { width: 100%; }
-  .month-picker input { flex: 1; min-width: 0; width: 0; }
+  .report-tools { width: 100%; justify-content: flex-start; }
   .bill-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .net-metric { grid-column: 1 / -1; }
   .metric { gap: 8px; padding: 14px; }

@@ -38,7 +38,7 @@ Browser viewport checks do not exercise native IPC, Android dialogs, the softwar
 - Preview a backup, cancel the safety-copy save, and verify restore does not run. Then save the safety copy and complete restore.
 - Relaunch offline and verify accounts, transactions, and preferences persist.
 - Check safe areas, portrait/landscape layouts, scrolling, account ordering, and system-back behavior.
-- Verify the four native mobile tabs stay at the bottom, the last controls remain above the bar, and summary cards appear only on Home. Web and desktop navigation should keep their existing positions.
+- Verify the five native mobile tabs stay at the bottom, the last controls remain above the bar, and summary cards appear only on Home. Check the order Home, Reports, Add entry, Accounts, Settings and the central add icon. Web and desktop navigation should keep their existing positions.
 - Import an older compatible JSON backup; reject invalid/newer schemas without losing the current ledger.
 
 ## Verification record (2026-09-13)

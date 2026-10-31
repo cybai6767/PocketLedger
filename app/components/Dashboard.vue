@@ -75,7 +75,7 @@ function arc(start: number, end: number) {
     </section>
   </div>
 
-  <LedgerCharts />
+  <LedgerCharts part="bill" />
 
   <div class="overview">
     <button class="primary" @click="setTab('accounts')">{{ t('dashboard.newAccount') }}</button>

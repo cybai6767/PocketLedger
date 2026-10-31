@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, computed, watch, watchEffect } from 'vue'
-import { CURRENCY_SYMBOLS, type Transaction, type TxType } from '~~/shared/types/ledger'
+import { ref, reactive, computed, nextTick, watch, watchEffect } from 'vue'
+import type { Transaction, TxType } from '~~/shared/types/ledger'
 
-const { state, busy, addTransaction, editTransaction, addTransfer, editTransfer, removeTransaction } = useLedger()
+const { state, busy, addTransaction, editTransaction, addTransfer, editTransfer, transactionEditorId, snapshotVersion } = useLedger()
 const { locale, t } = useLocale()
 
 function today() {
@@ -33,8 +33,6 @@ const transferForm = reactive({
 })
 
 const txPanel = ref<HTMLElement | null>(null)
-const filterAcc = ref('all')
-const searchQuery = ref('')
 const transferTargets = computed(() => {
   const source = state.accounts.find(account => account.id === transferForm.fromAccountId)
   return state.accounts.filter(account => account.id !== source?.id && account.currency === source?.currency)
@@ -100,7 +98,6 @@ function startEdit(transaction: Transaction) {
       amount: expense.amount,
       note: expense.note ?? '',
     })
-    txPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     return
   }
   mode.value = 'transaction'
@@ -114,7 +111,6 @@ function startEdit(transaction: Transaction) {
     category: transaction.category,
     note: transaction.note ?? '',
   })
-  txPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function cancelEdit() {
@@ -124,8 +120,20 @@ function cancelEdit() {
   Object.assign(transferForm, { date: today(), amount: 0, note: '' })
 }
 
-function switchMode(next: 'transaction' | 'transfer') {
+// A restored/reloaded ledger must not reuse an editor from the previous snapshot.
+watch(snapshotVersion, () => {
   cancelEdit()
+  mode.value = 'transaction'
+})
+watch(() => {
+  const id = editingId.value ?? editingTransferId.value
+  return id !== null && !state.transactions.some(transaction => transaction.id === id)
+}, missing => {
+  if (missing) cancelEdit()
+})
+
+function switchMode(next: 'transaction' | 'transfer') {
+  if (mode.value !== next) cancelEdit()
   mode.value = next
 }
 
@@ -141,31 +149,22 @@ async function saveTransfer() {
   }
 }
 
-function askRemove(transaction: Transaction) {
-  const message = transaction.transferId
-    ? t('transaction.deleteTransfer')
-    : t('transaction.deleteOne')
-  if (confirm(message)) void removeTransaction(transaction.id)
-}
-
-// 过滤后的流水列表
-const filteredList = computed(() => {
-  return state.transactions.filter(t => {
-    const matchAcc = filterAcc.value === 'all' || String(t.accountId) === filterAcc.value
-    const matchKey = t.category.includes(searchQuery.value) || (t.note || '').includes(searchQuery.value)
-    return matchAcc && matchKey
-  })
-})
-
-const getAccName = (id: number) => state.accounts.find(a => a.id === id)?.name || t('transaction.unknownAccount')
-const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigits: 2 })
+watch(transactionEditorId, async id => {
+  if (id === null) return
+  const transaction = state.transactions.find(item => item.id === id)
+  transactionEditorId.value = null
+  if (!transaction) return
+  startEdit(transaction)
+  await nextTick()
+  txPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}, { immediate: true, flush: 'post' })
 </script>
 
 <template>
   <div ref="txPanel">
-    <div class="mode-tabs">
-      <button :class="{ active: mode === 'transaction' }" @click="switchMode('transaction')">{{ t('transaction.record') }}</button>
-      <button :class="{ active: mode === 'transfer' }" @click="switchMode('transfer')">{{ t('transaction.transfer') }}</button>
+    <div class="mode-tabs" role="group" :aria-label="t('tab.transactions')">
+      <button :class="{ active: mode === 'transaction' }" :aria-pressed="mode === 'transaction'" @click="switchMode('transaction')">{{ t('transaction.record') }}</button>
+      <button :class="{ active: mode === 'transfer' }" :aria-pressed="mode === 'transfer'" @click="switchMode('transfer')">{{ t('transaction.transfer') }}</button>
     </div>
 
     <section class="panel">
@@ -235,75 +234,24 @@ const fmt = (v: number) => v.toLocaleString(locale.value, { minimumFractionDigit
       <p v-if="mode === 'transfer'" class="form-tip">{{ t('transaction.transferTip') }}</p>
     </section>
 
-    <!-- 流水列表 -->
-    <section class="panel">
-      <div class="list-header">
-        <h3>{{ t('transaction.list') }}</h3>
-        <div class="filters">
-          <select v-model="filterAcc">
-            <option value="all">{{ t('transaction.allAccounts') }}</option>
-            <option v-for="a in state.accounts" :key="a.id" :value="String(a.id)">{{ a.name }}</option>
-          </select>
-          <input v-model="searchQuery" :placeholder="t('transaction.search')" class="search-box" />
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table v-if="filteredList.length">
-          <thead>
-            <tr><th>{{ t('transaction.date') }}</th><th>{{ t('transaction.category') }}</th><th>{{ t('transaction.note') }}</th><th>{{ t('transaction.account') }}</th><th>{{ t('transaction.amount') }}</th><th>{{ t('common.actions') }}</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="transaction in filteredList" :key="transaction.id">
-              <td>{{ transaction.date }}</td>
-              <td>{{ transaction.transferId ? t('transaction.transfer') : transaction.category }}</td>
-              <td class="transaction-note" :title="transaction.note">{{ transaction.note || '—' }}</td>
-              <td>{{ getAccName(transaction.accountId) }}</td>
-              <td :class="transaction.type">
-                {{ transaction.type === 'income' ? '+' : '-' }}{{ CURRENCY_SYMBOLS[transaction.currency || 'CNY'] }}{{ fmt(transaction.amount) }}
-              </td>
-              <td>
-                <div class="row-actions">
-                  <button class="link-edit" @click="startEdit(transaction)">{{ t('common.edit') }}</button>
-                  <button class="link-danger" @click="askRemove(transaction)">{{ t('common.delete') }}</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-else class="empty">{{ t('transaction.empty') }}</div>
-      </div>
-    </section>
   </div>
 </template>
 
 <style scoped>
 .panel { width: 100%; min-width: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
-.mode-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-.mode-tabs button { padding: 8px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); cursor: pointer; }
+.mode-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.mode-tabs button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); cursor: pointer; }
 .mode-tabs button.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+.mode-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 14px; }
 label { min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
 input, select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px; }
 .save-btn { padding: 10px 24px; }
-.form-actions, .row-actions { display: flex; gap: 8px; }
+.form-actions { display: flex; gap: 8px; }
 .ghost { padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
 .form-tip { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .transfer-note { grid-column: span 2; }
 
-.list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.filters { display: flex; gap: 10px; }
-.search-box { width: 180px; }
-
-.table-wrap { max-width: 100%; max-height: 400px; overflow: auto; -webkit-overflow-scrolling: touch; }
-table { width: 100%; min-width: 760px; border-collapse: collapse; }
-th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--border); }
-.income { color: #16a34a; font-weight: 600; }
-.expense { color: #dc2626; font-weight: 600; }
-.transaction-note { max-width: 220px; white-space: normal; overflow-wrap: anywhere; color: var(--muted); }
-.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
-.link-danger { background: none; border: 1px solid #dc2626; color: #dc2626; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
-.link-edit { background: none; border: 1px solid var(--accent); color: var(--accent); padding: 4px 8px; border-radius: 4px; cursor: pointer; }
 .primary { background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
 
 @media (max-width: 860px) {
@@ -314,9 +262,5 @@ th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid var(--bor
   .panel { padding: 16px; }
   .form-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .transfer-note { grid-column: auto; }
-  .list-header { align-items: stretch; flex-direction: column; gap: 12px; }
-  .filters { width: 100%; flex-wrap: wrap; }
-  .filters select { width: auto; flex: 1 1 110px; }
-  .search-box { width: auto; flex: 2 1 150px; }
 }
 </style>
