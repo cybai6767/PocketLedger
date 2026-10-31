@@ -65,8 +65,14 @@ const restoredTransactionSchema = z.object({
   amount: money.positive('金额必须大于 0'),
   currency: z.enum(CURRENCIES),
   category: z.string().trim().min(1, '分类不能为空').max(40, '分类不能超过 40 个字符'),
-  note: z.string().trim().max(200, '备注不能超过 200 个字符').optional(),
-  transferId: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+  note: z.preprocess(
+    value => (value === null || (typeof value === 'string' && value.trim() === '')) ? undefined : value,
+    z.string().trim().max(200, '备注不能超过 200 个字符').optional(),
+  ),
+  transferId: z.preprocess(
+    value => (value === null || value === '') ? undefined : value,
+    z.string().regex(/^[a-f0-9]{32}$/i).optional(),
+  ),
 }).strict()
 
 export const ledgerBackupSchema = z.object({

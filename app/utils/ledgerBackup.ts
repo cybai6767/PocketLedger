@@ -97,6 +97,22 @@ async function saveBytes(
 }
 
 const money = z.number().finite().min(-1_000_000_000_000).max(1_000_000_000_000)
+
+function absentText(value: unknown): unknown {
+  if (value === null || value === undefined) return undefined
+  if (typeof value === 'string' && value.trim() === '') return undefined
+  return value
+}
+
+const optionalNote = z.preprocess(
+  absentText,
+  z.string().trim().max(200).optional(),
+)
+const optionalTransferId = z.preprocess(
+  value => (value === null || value === '') ? undefined : value,
+  z.string().regex(/^[a-f0-9]{32}$/i).optional(),
+)
+
 const jsonBackupSchema = z.object({
   format: z.literal(BACKUP_FORMAT),
   formatVersion: z.literal(BACKUP_FORMAT_VERSION, '备份格式版本不受支持'),
@@ -122,8 +138,8 @@ const jsonBackupSchema = z.object({
       amount: money.positive(),
       currency: z.enum(CURRENCIES),
       category: z.string().trim().min(1).max(40),
-      note: z.string().trim().max(200).optional(),
-      transferId: z.string().regex(/^[a-f0-9]{32}$/).optional(),
+      note: optionalNote,
+      transferId: optionalTransferId,
     }).strict()).max(1_000_000),
     settings: z.object({
       baseCurrency: z.enum(CURRENCIES),
@@ -202,12 +218,13 @@ export function parseLedgerJson(
   source: string,
   language: Language = 'zh-CN',
 ): LedgerBackupPreview {
-  if (new TextEncoder().encode(source).byteLength > 50 * 1024 * 1024) {
+  const normalized = source.charCodeAt(0) === 0xfeff ? source.slice(1) : source
+  if (new TextEncoder().encode(normalized).byteLength > 50 * 1024 * 1024) {
     throw new Error(language === 'en' ? 'The backup is larger than 50 MB and cannot be opened' : '备份文件超过 50 MB，已拒绝读取')
   }
   let value: unknown
   try {
-    value = JSON.parse(source)
+    value = JSON.parse(normalized)
   }
   catch {
     throw new Error(language === 'en' ? 'The selected file is not a valid JSON backup' : '文件不是有效的 JSON 备份')
@@ -270,6 +287,25 @@ async function selectBrowserJson(language: Language): Promise<string | null> {
   })
 }
 
+export function jsonBackupOpenOptions(language: Language, listAllFiles: boolean) {
+  return {
+    multiple: false as const,
+    directory: false as const,
+    ...(listAllFiles
+      ? {}
+      : {
+          filters: [{
+            name: language === 'en' ? 'Complete JSON backup' : '完整 JSON 备份',
+            extensions: ['json'],
+          }],
+        }),
+  }
+}
+
+function listAllBackupFiles(): boolean {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+}
+
 export async function selectLedgerJson(
   isTauri: boolean,
   language: Language = 'zh-CN',
@@ -280,12 +316,10 @@ export async function selectLedgerJson(
       import('@tauri-apps/plugin-dialog'),
       import('@tauri-apps/plugin-fs'),
     ])
-    const path = await open({
-      multiple: false,
-      directory: false,
-      filters: [{ name: language === 'en' ? 'Complete JSON backup' : '完整 JSON 备份', extensions: ['json'] }],
-    })
-    if (!path) return null
+    // Android maps a ".json" filter to application/json. Many file managers then
+    // hide backups saved as text/plain or octet-stream, so the picker looks empty.
+    const path = await open(jsonBackupOpenOptions(language, listAllBackupFiles()))
+    if (typeof path !== 'string' || path.length === 0) return null
     source = await readTextFile(path)
   }
   else {

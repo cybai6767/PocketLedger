@@ -4,6 +4,7 @@ import {
   createLedgerCsv,
   createLedgerJson,
   createLedgerXlsx,
+  jsonBackupOpenOptions,
   parseLedgerJson,
 } from '../app/utils/ledgerBackup'
 
@@ -37,6 +38,25 @@ describe('ledger backup exports', () => {
     expect(preview.accountCount).toBe(1)
     expect(preview.transactionCount).toBe(1)
     expect(preview.backup.data).toEqual(snapshot)
+  })
+
+  it('accepts backups that store empty notes as null', () => {
+    const value = JSON.parse(createLedgerJson(snapshot, exportedAt)) as {
+      data: { transactions: Array<Record<string, unknown>> }
+    }
+    value.data.transactions[0]!.note = null
+    value.data.transactions[0]!.transferId = null
+
+    const preview = parseLedgerJson(JSON.stringify(value))
+
+    expect(preview.backup.data.transactions[0]?.note).toBeUndefined()
+    expect(preview.backup.data.transactions[0]?.transferId).toBeUndefined()
+    expect(preview.accountCount).toBe(1)
+  })
+
+  it('lists every file on Android so JSON backups are not hidden by MIME type', () => {
+    expect(jsonBackupOpenOptions('zh-CN', true)).toEqual({ multiple: false, directory: false })
+    expect(jsonBackupOpenOptions('zh-CN', false).filters?.[0]?.extensions).toEqual(['json'])
   })
 
   it('defaults old JSON backups without a language field to Simplified Chinese', () => {

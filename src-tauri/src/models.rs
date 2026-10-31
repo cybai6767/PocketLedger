@@ -62,6 +62,7 @@ pub(crate) struct LedgerTransaction {
     pub(crate) amount: f64,
     pub(crate) currency: String,
     pub(crate) category: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) transfer_id: Option<String>,

@@ -41,7 +41,7 @@
 | Android ARM64 | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载正式版 `.apk`。 | 手机应用数据目录 |
 | Web / 自部署 | 使用下面的 Node.js 或 Docker 方式启动。 | 服务器 SQLite |
 
-Android v1.0.5 更换发布签名；旧版用户需先导出 JSON 备份，再卸载旧版、安装新版并恢复。详情见 [更新说明](RELEASE_NOTES.md)。
+Android 从 v1.0.5 起更换发布签名；旧版用户需先导出 JSON 备份，再卸载旧版、安装新版并恢复。详情见 [更新说明](RELEASE_NOTES.md)。
 
 安装后的应用使用中文名称“口袋账本”；发布文件使用 PocketLedger 和平台/架构命名，便于识别下载。
 

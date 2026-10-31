@@ -27,6 +27,7 @@ const exportMessage = ref('')
 const selectedBackup = ref<LedgerBackupPreview | null>(null)
 const selectingBackup = ref(false)
 const restoring = ref(false)
+const restoreMessage = ref('')
 const integrityMessage = ref('')
 
 function setPreference<K extends keyof Settings>(key: K, value: Settings[K]) {
@@ -67,16 +68,22 @@ async function exportBackup(format: 'csv' | 'xlsx' | 'json') {
   }
 }
 
+function reportRestore(message: string) {
+  restoreMessage.value = message
+  setError(message)
+}
+
 async function chooseBackup() {
   selectingBackup.value = true
   selectedBackup.value = null
   exportMessage.value = ''
+  restoreMessage.value = ''
   setError(null)
   try {
     selectedBackup.value = await selectLedgerJson(isTauri, locale.value)
   }
   catch (error) {
-    setError(error instanceof Error ? t('backup.readFailed', { error: error.message }) : t('backup.readFailedGeneric'))
+    reportRestore(error instanceof Error ? t('backup.readFailed', { error: error.message }) : t('backup.readFailedGeneric'))
   }
   finally {
     selectingBackup.value = false
@@ -87,17 +94,18 @@ async function chooseLatestAutomaticBackup() {
   selectingBackup.value = true
   selectedBackup.value = null
   exportMessage.value = ''
+  restoreMessage.value = ''
   setError(null)
   try {
     const backup = await loadLatestAutomaticBackup()
     if (!backup) {
-      setError(t('backup.none'))
+      reportRestore(t('backup.none'))
       return
     }
     selectedBackup.value = parseLedgerJson(JSON.stringify(backup), locale.value)
   }
   catch (error) {
-    setError(error instanceof Error ? t('backup.autoReadFailed', { error: error.message }) : t('backup.autoReadFailedGeneric'))
+    reportRestore(error instanceof Error ? t('backup.autoReadFailed', { error: error.message }) : t('backup.autoReadFailedGeneric'))
   }
   finally {
     selectingBackup.value = false
@@ -286,6 +294,7 @@ async function inspectBalances(repair = false) {
             @click="chooseLatestAutomaticBackup"
           >{{ t('backup.latest') }}</button>
         </div>
+        <p v-if="restoreMessage" class="restore-feedback" role="alert">{{ restoreMessage }}</p>
       </div>
       <div v-if="selectedBackup" class="restore-preview" role="status">
         <div>
@@ -376,6 +385,7 @@ select { width: 100%; min-width: 0; min-height: 42px; padding: 9px 12px; border:
 .restore-box { margin-top: 18px; padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--input); }
 .restore-box h4 { margin: 0 0 6px; font-size: 14px; }
 .restore-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.restore-feedback { margin: 12px 0 0; color: var(--danger); font-size: 13px; line-height: 1.5; }
 .restore-select, .integrity-actions button { min-height: 40px; padding: 9px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); font-size: 13px; cursor: pointer; }
 .restore-select:hover:not(:disabled), .integrity-actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .restore-preview { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 14px; padding: 18px; border: 1px solid var(--success); border-radius: 12px; background: var(--success-soft); }
