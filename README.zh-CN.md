@@ -6,7 +6,7 @@
 
 **让每一笔收支，都清清楚楚。**
 
-支持 Web、Windows 和 Android 的个人记账工具。
+支持 Web、Windows、Linux 和 Android 的个人记账工具。
 管理账户、记录收支、查看资产变化，桌面与 Android 端可离线使用。
 
 [![质量检查](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
@@ -20,7 +20,7 @@
 
 | 离线也能记账 | 收支一目了然 | 数据可以带走 |
 | --- | --- | --- |
-| Windows 和 Android 使用设备本机 SQLite 保存账本。 | 按月查看收入、支出、结余，结合全年对比、每日花费和分类排行了解资金去向。 | 导出 JSON、CSV 或 Excel，通过 JSON 恢复完整账本。 |
+| Windows、Linux 和 Android 使用设备本机 SQLite 保存账本。 | 按月查看收入、支出、结余，结合全年对比、每日花费和分类排行了解资金去向。 | 导出 JSON、CSV 或 Excel，通过 JSON 恢复完整账本。 |
 
 ## 主要功能
 
@@ -37,10 +37,11 @@
 | 平台 | 使用方式 | 数据位置 |
 | --- | --- | --- |
 | Windows x64 | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载 `.exe` 安装包。 | 电脑应用数据目录 |
+| Linux AMD64（Ubuntu 24.04+） | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载 `.deb` 安装包。 | 电脑应用数据目录 |
 | Android ARM64 | 从 [Releases](https://github.com/cybai6767/PocketLedger/releases/latest) 下载正式版 `.apk`。 | 手机应用数据目录 |
 | Web / 自部署 | 使用下面的 Node.js 或 Docker 方式启动。 | 服务器 SQLite |
 
-安装后的应用及发布文件使用中文名称“口袋账本”，项目和仓库继续使用英文名称 PocketLedger。
+安装后的应用使用中文名称“口袋账本”；发布文件使用 PocketLedger 和平台/架构命名，便于识别下载。
 
 ## 快速开始
 

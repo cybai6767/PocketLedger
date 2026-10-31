@@ -6,7 +6,7 @@
 
 **Your finances, clearly organized.**
 
-A personal finance tracker for Web, Windows, and Android.
+A personal finance tracker for Web, Windows, Linux, and Android.
 Track accounts, record expenses, and explore your finances—with offline storage on desktop and Android.
 
 [![Quality checks](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml/badge.svg)](https://github.com/cybai6767/PocketLedger/actions/workflows/quality.yml)
@@ -20,7 +20,7 @@ Track accounts, record expenses, and explore your finances—with offline storag
 
 | Keep your ledger close | See the bigger picture | Take your data with you |
 | --- | --- | --- |
-| Record transactions offline on Windows and Android with on-device SQLite. | Review monthly income, expenses, and surplus alongside annual comparisons, daily spending, and category rankings. | Export JSON, CSV, or Excel; restore a complete ledger from JSON. |
+| Record transactions offline on Windows, Linux, and Android with on-device SQLite. | Review monthly income, expenses, and surplus alongside annual comparisons, daily spending, and category rankings. | Export JSON, CSV, or Excel; restore a complete ledger from JSON. |
 
 ## Features
 
@@ -37,10 +37,11 @@ Track accounts, record expenses, and explore your finances—with offline storag
 | Platform | Start here | Data location |
 | --- | --- | --- |
 | Windows x64 | Download the `.exe` installer from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your computer's application data directory |
+| Linux AMD64 (Ubuntu 24.04+) | Download the `.deb` installer from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your computer's application data directory |
 | Android ARM64 | Download the release `.apk` from [Releases](https://github.com/cybai6767/PocketLedger/releases/latest). | Your device's application data directory |
 | Web / self-hosted | Use Node.js or Docker below. | SQLite on your server |
 
-The installed application and release files use the Chinese product name **口袋账本**. The project and repository continue to use the international name **PocketLedger**.
+The installed application uses the Chinese product name **口袋账本**. Release filenames use **PocketLedger** with platform and architecture labels.
 
 ## Quick start
 

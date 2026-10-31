@@ -70,7 +70,13 @@ Build a Windows NSIS installer on Windows:
 npm run tauri -- build --bundles nsis
 ```
 
-Tauri runs `generate:tauri` and embeds `.output/public`. The release workflow targets Windows x64; macOS/Linux installers are not configured there.
+Build a DEB installer on Linux after installing the Tauri Linux build dependencies:
+
+```bash
+npm run tauri -- build --bundles deb
+```
+
+Tauri runs `generate:tauri` and embeds `.output/public`. Releases target Windows x64, Android ARM64, and Linux AMD64. Linux CI builds on Ubuntu 24.04 for Ubuntu 24.04+ compatibility; macOS installers are not configured.
 
 ## Android
 
@@ -97,7 +103,7 @@ Debug packages are for testing. Before release, test keyboard behavior, safe are
 
 ## Releases
 
-The release workflow accepts `v*` tags and manual dispatch. Prefer a version tag for versioned releases. It builds Windows NSIS and Android ARM64 APK artifacts, verifies the Android signature, and publishes both to GitHub Releases.
+The release workflow accepts `v*` tags and manual dispatch. A push to `main` changing `package.json` or the release workflow also starts it; branch pushes skip versions whose tag already exists. It builds Windows NSIS, signed Android ARM64 APK, and Linux AMD64 DEB artifacts. Only after all three jobs succeed does it verify the complete asset set, generate SHA-256 checksums, and publish a release tagged with the package version.
 
 Configure repository secrets:
 

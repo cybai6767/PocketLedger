@@ -9,9 +9,14 @@ describe('release configuration', () => {
     const tauriVersion = (JSON.parse(rootFile('src-tauri/tauri.conf.json')) as { version: string }).version
     const cargoVersion = /^version = "([^"]+)"/m.exec(rootFile('src-tauri/Cargo.toml'))?.[1]
 
-    expect(packageVersion).toBe('1.0.4')
+    expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/)
     expect(tauriVersion).toBe(packageVersion)
     expect(cargoVersion).toBe(packageVersion)
+    const lock = JSON.parse(rootFile('package-lock.json')) as { version: string, packages: Record<string, { version: string }> }
+    expect(lock.version).toBe(packageVersion)
+    expect(lock.packages['']?.version).toBe(packageVersion)
+    const rustLockVersion = /name = "pocketledger"\nversion = "([^"]+)"/.exec(rootFile('src-tauri/Cargo.lock'))?.[1]
+    expect(rustLockVersion).toBe(packageVersion)
   })
 
   it('keeps release signing external to Git and enabled through environment variables', () => {
