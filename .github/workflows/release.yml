@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
 
 jobs:
   prepare:
@@ -129,6 +129,9 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
 
       - name: Install Android platform, build tools and NDK
         run: |
