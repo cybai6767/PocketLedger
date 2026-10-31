@@ -29,6 +29,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Audit source for private files and build output
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess
+          files = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          blocked_dirs = {'.git', '.nuxt', '.output', '.release', '.gradle', '.cache', 'node_modules', 'target', 'data', 'dist', '__pycache__'}
+          blocked_extensions = {'.apk', '.aab', '.exe', '.msi', '.deb', '.rpm', '.appimage', '.dmg', '.p12', '.jks', '.keystore', '.key', '.sqlite', '.db', '.zip'}
+          bad = []
+          for filename in filter(None, files):
+              path = pathlib.PurePosixPath(filename)
+              environment = path.name == '.env' or (path.name.startswith('.env.') and path.name != '.env.example')
+              if blocked_dirs.intersection(path.parts) or path.suffix.lower() in blocked_extensions or environment or re.match(r'(PocketLedger-backup-|codex-clipboard-)', path.name):
+                  bad.append(filename)
+          if bad:
+              raise SystemExit('Unexpected private/build files in source control:\n' + '\n'.join(bad))
+          print('Source audit passed: no private files or build output tracked.')
+          PY
+
       - name: Determine release version
         id: version
         shell: bash
