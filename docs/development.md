@@ -76,7 +76,7 @@ Build a DEB installer on Linux after installing the Tauri Linux build dependenci
 npm run tauri -- build --bundles deb
 ```
 
-Tauri runs `generate:tauri` and embeds `.output/public`. Releases target Windows x64, Android ARM64, and Linux AMD64. Linux CI builds on Ubuntu 24.04 for Ubuntu 24.04+ compatibility; macOS installers are not configured.
+Tauri runs `generate:tauri` and embeds `.output/public`. Releases target Windows x64, Android ARM64, and Linux AMD64. Linux CI builds on Ubuntu 24.04 for Ubuntu 24.04+ compatibility. The Linux-specific Tauri configuration uses the Debian-safe package name `pocketledger`; a custom desktop entry retains the Chinese launcher label. macOS installers are not configured.
 
 ## Android
 

@@ -19,6 +19,15 @@ describe('release configuration', () => {
     expect(rustLockVersion).toBe(packageVersion)
   })
 
+  it('uses a valid Debian package name while retaining the Chinese launcher label', () => {
+    const linux = JSON.parse(rootFile('src-tauri/tauri.linux.conf.json')) as {
+      productName: string
+      bundle: { linux: { deb: { desktopTemplate: string } } }
+    }
+    expect(linux.productName).toMatch(/^[a-z0-9][a-z0-9+.-]+$/)
+    expect(rootFile(`src-tauri/${linux.bundle.linux.deb.desktopTemplate}`)).toContain('Name=口袋账本')
+  })
+
   it('keeps release signing external to Git and enabled through environment variables', () => {
     const gradle = rootFile('src-tauri/gen/android/app/build.gradle.kts')
     const gitignore = rootFile('.gitignore')

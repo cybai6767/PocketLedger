@@ -42,7 +42,7 @@ Release 同时提供 `SHA256SUMS.txt`。Android APK 使用项目原有发布密�
 
 ## 验证记录
 
-- TypeScript 测试 67 项、Rust 测试 12 项通过；类型检查、ESLint、Web 生产构建及 Tauri 静态前端构建通过。
+- TypeScript 测试 68 项、Rust 测试 12 项通过；类型检查、ESLint、Web 生产构建及 Tauri 静态前端构建通过。
 - 发布流程分别构建 Windows EXE、Android APK 和 Linux DEB，校验 APK 签名、DEB 版本/架构，并生成 SHA-256 校验文件；三端构建全部成功后统一发布。
 - 已检查桌面和手机宽度下的布局、四项导航、月份联动和账单显示；Android 真机键盘、系统返回键及安全区域仍需设备验证。
 

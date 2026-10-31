@@ -226,6 +226,7 @@ jobs:
           test "${#packages[@]}" -eq 1
           deb="${packages[0]}"
           dpkg-deb --info "$deb"
+          test "$(dpkg-deb -f "$deb" Package)" = "pocketledger"
           test "$(dpkg-deb -f "$deb" Architecture)" = "amd64"
           test "$(dpkg-deb -f "$deb" Version)" = "${RELEASE_TAG#v}"
           mkdir -p dist

@@ -1,0 +1,11 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "pocketledger",
+  "bundle": {
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/pocketledger.desktop.hbs"
+      }
+    }
+  }
+}
