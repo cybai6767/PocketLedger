@@ -22,6 +22,11 @@ export default defineNuxtConfig({
   },
   vite: {
     clearScreen: false,
+    build: {
+      // Nitro consumes these SSR externals. Relative paths break when Nuxt's
+      // cache directory is reached through a Windows junction or symlink.
+      rolldownOptions: { makeAbsoluteExternalsRelative: false },
+    },
     envPrefix: ['VITE_', 'TAURI_'],
     server: {
       strictPort: true,
