@@ -13,7 +13,7 @@ import {
 } from '../../shared/types/ledger'
 import type { AccountType, Currency, Language, LedgerBackup, LedgerBackupPreview, LedgerImportIssue, LedgerSnapshot, Settings, TransactionSource, TxType } from '../../shared/types/ledger'
 import { z } from 'zod'
-import { transactionSourceSchema } from '../../shared/utils/importSource'
+import { transactionSourceSchema } from '../../shared/ledger/importSource'
 
 type BackupFormat = 'csv' | 'xlsx' | 'json'
 

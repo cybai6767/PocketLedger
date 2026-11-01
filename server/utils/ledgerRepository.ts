@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import Decimal from 'decimal.js'
 import { createError } from 'h3'
-import { snapshotIdentity } from '../../shared/utils/ledgerSnapshot'
+import { snapshotIdentity } from '../../shared/ledger/ledgerSnapshot'
 import type {
   Account,
   AccountInput,

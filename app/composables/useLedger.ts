@@ -14,7 +14,7 @@ import type {
 } from '../../shared/types/ledger'
 import { DEFAULT_SETTINGS } from '../../shared/types/ledger'
 import { BACKUP_FORMAT, BACKUP_FORMAT_VERSION, LEDGER_SCHEMA_VERSION } from '../../shared/types/ledger'
-import { snapshotIdentity } from '../../shared/utils/ledgerSnapshot'
+import { snapshotIdentity } from '../../shared/ledger/ledgerSnapshot'
 
 export type TabKey = 'dashboard' | 'reports' | 'transactions' | 'accounts' | 'settings'
 

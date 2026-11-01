@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import Decimal from 'decimal.js'
 import type { LedgerBackupPreview, LedgerSnapshot } from '~~/shared/types/ledger'
 import { LEDGER_SCHEMA_VERSION } from '~~/shared/types/ledger'
-import { snapshotIdentity } from '~~/shared/utils/ledgerSnapshot'
+import { snapshotIdentity } from '~~/shared/ledger/ledgerSnapshot'
 import { exportLedgerCsv, exportLedgerJson, exportLedgerXlsx, parseLedgerJson, selectLedgerBackups } from '../utils/ledgerBackup'
 import { importAccountMappings, prepareLedgerImport, type ImportAccountMapping } from '../utils/ledgerImport'
 
