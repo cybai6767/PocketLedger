@@ -4,6 +4,7 @@ import type {
   BalanceCheck,
   LedgerBackup,
   LedgerSnapshot,
+  LedgerImportRequest,
   Settings,
   Transaction,
   TransactionInput,
@@ -27,4 +28,5 @@ export interface LedgerBackend {
   updateSettings(next: Settings): Promise<Settings>
   clearAll(): Promise<LedgerSnapshot>
   restoreBackup(backup: LedgerBackup): Promise<LedgerSnapshot>
+  applyImport(input: LedgerImportRequest): Promise<LedgerSnapshot>
 }

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { afterEach, expect, it, vi } from 'vitest'
 import { useLedger } from '../app/composables/useLedger'
+import { createLedgerJson, parseLedgerJson } from '../app/utils/ledgerBackup'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -52,4 +53,26 @@ it('switches language immediately and persists the complete settings object', as
     body: expect.objectContaining({ language: 'en' }),
   }))
   expect(ledger.state.settings.language).toBe('en')
+})
+
+it('keeps an undo snapshot after import and guards it after later changes', async () => {
+  const { request, ledger } = setup()
+  const before = JSON.parse(createLedgerJson(ledger.state)).data
+  const after = { ...before, accounts: [{ id: 1, name: '测试账户', type: 'cash', currency: 'CNY', balance: 100, sortOrder: 0 }] }
+  const backup = parseLedgerJson(createLedgerJson(after)).backup
+  request.mockResolvedValueOnce(after)
+  expect(await ledger.applyImport(backup, before)).toBe(true)
+  expect(ledger.canUndoImport.value).toBe(true)
+  request.mockResolvedValueOnce(before)
+  expect(await ledger.undoImport()).toBe(true)
+  expect(ledger.state.accounts).toHaveLength(0)
+  expect(ledger.canUndoImport.value).toBe(false)
+  expect(request.mock.calls[1]?.[0]).toBe('/api/ledger/import')
+  expect(request.mock.calls[1]?.[1]?.body.expected).toEqual(after)
+  request.mockResolvedValueOnce(after)
+  expect(await ledger.applyImport(backup, before)).toBe(true)
+  ledger.state.accounts[0]!.balance = 200
+  expect(ledger.canUndoImport.value).toBe(false)
+  expect(await ledger.undoImport()).toBe(false)
+  expect(request).toHaveBeenCalledTimes(3)
 })

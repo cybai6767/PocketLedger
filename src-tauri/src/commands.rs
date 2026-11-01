@@ -154,3 +154,13 @@ pub(crate) fn restore_ledger(
     save_automatic_backup(&database, &state.backup_dir)?;
     restore_ledger_record(&mut database, &backup)
 }
+
+#[tauri::command]
+pub(crate) fn apply_import(
+    input: LedgerImportRequest,
+    state: State<'_, AppState>,
+) -> Result<LedgerSnapshot, String> {
+    let mut database = lock_database(&state)?;
+    save_automatic_backup(&database, &state.backup_dir)?;
+    restore_ledger_expected_record(&mut database, &input.backup, Some(&input.expected))
+}

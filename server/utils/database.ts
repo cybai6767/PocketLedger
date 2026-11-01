@@ -86,6 +86,7 @@ const migrations: Migration[] = [
     sql: `ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'zh-CN'
       CHECK (language IN ('zh-CN', 'en'));`,
   },
+  { version: 4, sql: 'ALTER TABLE transactions ADD COLUMN source_json TEXT;' },
 ]
 
 export function getLedgerSchemaVersion(database: LedgerDatabase): number {
@@ -143,6 +144,10 @@ export function useLedgerDatabase(): LedgerDatabase {
       ? resolve(process.env.NUXT_DATABASE_PATH)
       : resolve(process.cwd(), 'data', 'accounting.sqlite')
     globalDatabase.__accountingToolDatabase = openLedgerDatabase(filename)
+  }
+  else if (getLedgerSchemaVersion(globalDatabase.__accountingToolDatabase) !== LEDGER_SCHEMA_VERSION) {
+    // Nuxt may retain the open connection across a development hot reload.
+    migrateLedgerDatabase(globalDatabase.__accountingToolDatabase)
   }
 
   return globalDatabase.__accountingToolDatabase

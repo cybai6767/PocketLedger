@@ -114,7 +114,7 @@ describe('ledger backup exports', () => {
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(Buffer.from(bytes))
 
-    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['说明', '账户', '流水', '设置'])
+    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['流水', '账户', '设置', '说明'])
     expect(workbook.getWorksheet('账户')?.getCell('B2').value).toBe("'=测试账户")
     expect(workbook.getWorksheet('账户')?.getCell('F2').value).toBe(1234.56)
     expect(workbook.getWorksheet('账户')?.getRow(1).fill).toBeUndefined()
@@ -141,7 +141,7 @@ describe('ledger backup exports', () => {
     const ExcelJS = (await import('exceljs')).default
     const workbook = new ExcelJS.Workbook()
     await workbook.xlsx.load(Buffer.from(await createLedgerXlsx(englishSnapshot, exportedAt)))
-    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['About', 'Accounts', 'Transactions', 'Settings'])
+    expect(workbook.worksheets.map(sheet => sheet.name)).toEqual(['Transactions', 'Accounts', 'Settings', 'About'])
     expect(workbook.getWorksheet('Accounts')?.getCell('D2').value).toBe('Cash')
     expect(workbook.getWorksheet('Transactions')?.getCell('D2').value).toBe('Expense')
   })
@@ -195,7 +195,8 @@ describe('ledger backup exports', () => {
       ['2026-01-02', '早餐', '豆浆', 2],
       ['2026-01-03', '午餐', '套餐 · 食堂', 3],
     ])
-    expect(JSON.stringify(preview.backup)).not.toContain('hidden-member')
+    expect(preview.backup.data.transactions[2]?.note).not.toContain('hidden-member')
+    expect(preview.backup.data.transactions[2]?.source?.fields).toMatchObject({ 成员: 'hidden-member', 记账人: 'hidden-member' })
   })
 
   it('merges several selected backups and keeps duplicate rows inside one file', { timeout: 15_000 }, async () => {

@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { createError, getRouterParam, readBody } from 'h3'
 import { z } from 'zod'
+import { transactionSourceSchema } from '../../shared/utils/importSource'
 import {
   ACCOUNT_TYPES,
   BACKUP_FORMAT,
@@ -73,6 +74,7 @@ const restoredTransactionSchema = z.object({
     value => (value === null || value === '') ? undefined : value,
     z.string().regex(/^[a-f0-9]{32}$/i).optional(),
   ),
+  source: transactionSourceSchema.optional(),
 }).strict()
 
 export const ledgerBackupSchema = z.object({

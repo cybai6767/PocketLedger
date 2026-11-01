@@ -68,23 +68,26 @@ Web defaults to `data/accounting.sqlite`, overridden by `NUXT_DATABASE_PATH`. Ta
 
 ## Migrations and backups
 
-- Schema version **3**, stored in `PRAGMA user_version`; backup format version **1**.
+- Schema version **4**, stored in `PRAGMA user_version`; backup format version **1**.
 - The backup identifier remains `accounting-tool-backup` for compatibility.
 - Migrations run sequentially in transactions. Newer unsupported schemas are rejected.
 - Version 2 adds opening balances and transfer identifiers; opening balances are derived from existing balances and transactions.
 - Version 3 adds the persisted interface language; existing databases and older JSON backups default to Simplified Chinese.
-- JSON restore validates versions, IDs, currencies, and relationships, then replaces the ledger transactionally. The UI requires saving the current ledger before proceeding.
+- Version 4 adds optional original import provenance on transactions. Older databases migrate without changing balances or entries.
+- Restore validates versions, IDs, currencies, and relationships, then replaces the ledger transactionally after an inline confirmation. It saves an automatic snapshot and never forces a download.
+- Append import uses shared TypeScript rules for file parsing, account mappings, balance policies, original-row fingerprints, and possible duplicate review. HTTP and IPC both apply the prepared snapshot under an optimistic snapshot check and a database transaction. Undo uses the same check, and is allowed only before subsequent ledger changes.
 - Automatic pre-change JSON snapshots live in `automatic-backups` next to the Web database or inside the Tauri app data directory. Seven files are retained; amounts are unmasked.
-- JSON is the preferred full restore format. PocketLedger CSV/Excel can also be restored; newly exported spreadsheets preserve transfer IDs. Suishouji income/expense sheets are supported. Selected files can be merged before restore, preserving transfer pairs and remapping colliding IDs. Old spreadsheets without transfer IDs cannot reliably recreate relationships.
+- JSON is the preferred full restore format. PocketLedger CSV/Excel can also be restored; newly exported spreadsheets preserve transfer IDs. Suishouji income/expense sheets retain original date/time, both categories, members, recorder, and other source fields. Invalid rows are reported by file, sheet and row and require explicit acknowledgement before importing valid rows. Multiple files are appended with transfer pairs kept intact and colliding IDs remapped. Existing balances stay unchanged unless the user selects an effect on balances; new account balances are entered explicitly, not inferred from historical net income. Old spreadsheets without transfer IDs cannot reliably recreate relationships.
 
-There is no automatic sync, merge into the currently open ledger, or legacy MySQL importer. The previous Spring Boot implementation remains in Git history; old MySQL data requires a separately designed migration.
+There is no automatic sync or legacy MySQL importer. Append import does merge into the current ledger; full restore is a separate workflow. The previous Spring Boot implementation remains in Git history; old MySQL data requires a separately designed migration.
 
 ## HTTP API
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET / DELETE | `/api/ledger` | Read / clear ledger |
-| POST | `/api/ledger/restore` | Restore validated JSON |
+| POST | `/api/ledger/restore` | Restore a validated complete backup |
+| POST | `/api/ledger/import` | Apply append import / undo with an expected snapshot guard |
 | GET | `/api/ledger/automatic-backup` | Read latest automatic backup |
 | GET / POST | `/api/ledger/integrity` | Check / repair balances |
 | GET / POST | `/api/accounts` | List / create accounts |

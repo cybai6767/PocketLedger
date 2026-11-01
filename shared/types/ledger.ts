@@ -5,7 +5,7 @@ export const ACCOUNT_TYPES = [
 export const CURRENCIES = ['CNY', 'HKD', 'USD', 'EUR', 'USDT', 'BTC'] as const
 export const TX_TYPES = ['income', 'expense'] as const
 
-export const LEDGER_SCHEMA_VERSION = 3
+export const LEDGER_SCHEMA_VERSION = 4
 export const BACKUP_FORMAT_VERSION = 1
 export const BACKUP_FORMAT = 'accounting-tool-backup' as const
 
@@ -40,6 +40,28 @@ export interface Transaction {
   category: string
   note?: string
   transferId?: string
+  source?: TransactionSource
+}
+
+export interface TransactionSource {
+  format: 'suishouji' | 'pocketledger'
+  fileName: string
+  fileId: string
+  sheet: string
+  row: number
+  fields: Record<string, string>
+}
+
+export interface LedgerImportIssue {
+  file: string
+  sheet: string
+  row: number
+  message: string
+}
+
+export interface LedgerImportRequest {
+  backup: LedgerBackup
+  expected: LedgerSnapshot
 }
 
 export interface TransactionInput {
@@ -104,6 +126,9 @@ export interface LedgerBackupPreview {
   transactionCount: number
   exportedAt: string
   sourceLabel?: string
+  fileId?: string
+  fileName?: string
+  issues?: LedgerImportIssue[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {

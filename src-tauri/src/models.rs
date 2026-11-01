@@ -2,7 +2,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Mutex};
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 3;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 4;
 pub(crate) const BACKUP_FORMAT_VERSION: i64 = 1;
 pub(crate) const BACKUP_FORMAT: &str = "accounting-tool-backup";
 
@@ -66,6 +66,26 @@ pub(crate) struct LedgerTransaction {
     pub(crate) note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) transfer_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) source: Option<TransactionSource>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct TransactionSource {
+    pub(crate) format: String,
+    pub(crate) file_name: String,
+    pub(crate) file_id: String,
+    pub(crate) sheet: String,
+    pub(crate) row: i64,
+    pub(crate) fields: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct LedgerImportRequest {
+    pub(crate) backup: LedgerBackup,
+    pub(crate) expected: LedgerSnapshot,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -143,6 +163,7 @@ pub(crate) type RawTransaction = (
     String,
     String,
     String,
+    Option<String>,
     Option<String>,
     Option<String>,
 );

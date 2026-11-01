@@ -56,6 +56,7 @@ pub fn run() {
             commands::update_settings,
             commands::clear_ledger,
             commands::restore_ledger,
+            commands::apply_import,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

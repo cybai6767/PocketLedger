@@ -33,5 +33,6 @@ export function createTauriLedgerBackend(invoke: Invoke = nativeInvoke): LedgerB
     updateSettings: (next) => invoke<Settings>('update_settings', { settings: next }),
     clearAll: () => invoke<LedgerSnapshot>('clear_ledger'),
     restoreBackup: (backup) => invoke<LedgerSnapshot>('restore_ledger', { backup }),
+    applyImport: (input) => invoke<LedgerSnapshot>('apply_import', { input }),
   }
 }

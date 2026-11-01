@@ -11,8 +11,9 @@ import {
   LEDGER_SCHEMA_VERSION,
   TX_TYPES,
 } from '../../shared/types/ledger'
-import type { AccountType, Currency, Language, LedgerBackup, LedgerBackupPreview, LedgerSnapshot, Settings, TxType } from '../../shared/types/ledger'
+import type { AccountType, Currency, Language, LedgerBackup, LedgerBackupPreview, LedgerImportIssue, LedgerSnapshot, Settings, TransactionSource, TxType } from '../../shared/types/ledger'
 import { z } from 'zod'
+import { transactionSourceSchema } from '../../shared/utils/importSource'
 
 type BackupFormat = 'csv' | 'xlsx' | 'json'
 
@@ -40,7 +41,7 @@ function backupFilename(format: BackupFormat): string {
 
 function safeText(value: string): string {
   const normalized = value.replace(/\u0000/g, '')
-  return /^[=+\-@]/.test(normalized.trimStart()) ? `'${normalized}` : normalized
+  return /^[=+\-@']/.test(normalized.trimStart()) ? `'${normalized}` : normalized
 }
 
 function csvCell(value: string | number | boolean | null | undefined): string {
@@ -142,6 +143,7 @@ const jsonBackupSchema = z.object({
       category: z.string().trim().min(1).max(40),
       note: optionalNote,
       transferId: optionalTransferId,
+      source: transactionSourceSchema.optional(),
     }).strict()).max(1_000_000),
     settings: z.object({
       baseCurrency: z.enum(CURRENCIES),
@@ -256,14 +258,14 @@ export async function exportLedgerJson(
   )
 }
 
-async function selectBrowserBackup(
+async function selectBrowserBackups(
   language: Language,
   settings: Settings,
-): Promise<LedgerBackupPreview | null> {
+): Promise<LedgerBackupPreview[] | null> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input')
     let settled = false
-    const finish = (value: LedgerBackupPreview | null, error?: unknown) => {
+    const finish = (value: LedgerBackupPreview[] | null, error?: unknown) => {
       if (settled) return
       settled = true
       input.remove()
@@ -285,7 +287,7 @@ async function selectBrowserBackup(
           }
           previews.push(await parseLedgerBackupBytes(new Uint8Array(await file.arrayBuffer()), file.name, language, settings))
         }
-        finish(mergeLedgerBackups(previews, language))
+        finish(previews)
       }
       catch (error) {
         finish(null, error)
@@ -316,12 +318,12 @@ function listAllBackupFiles(): boolean {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 }
 
-export async function selectLedgerBackup(
+export async function selectLedgerBackups(
   isTauri: boolean,
   language: Language = 'zh-CN',
   settings: Settings = { ...DEFAULT_SETTINGS, language },
-): Promise<LedgerBackupPreview | null> {
-  if (!isTauri) return selectBrowserBackup(language, settings)
+): Promise<LedgerBackupPreview[] | null> {
+  if (!isTauri) return selectBrowserBackups(language, settings)
   const [{ open }, { readFile }] = await Promise.all([
     import('@tauri-apps/plugin-dialog'),
     import('@tauri-apps/plugin-fs'),
@@ -335,7 +337,12 @@ export async function selectLedgerBackup(
   for (const path of paths) {
     previews.push(await parseLedgerBackupBytes(await readFile(path), path, language, settings))
   }
-  return mergeLedgerBackups(previews, language)
+  return previews
+}
+
+export async function selectLedgerBackup(isTauri: boolean, language: Language = 'zh-CN', settings: Settings = { ...DEFAULT_SETTINGS, language }): Promise<LedgerBackupPreview | null> {
+  const previews = await selectLedgerBackups(isTauri, language, settings)
+  return previews ? mergeLedgerBackups(previews, language) : null
 }
 
 function backupError(language: Language, zh: string, en: string): Error {
@@ -343,7 +350,8 @@ function backupError(language: Language, zh: string, en: string): Error {
 }
 
 function filenameOf(path: string): string {
-  const clean = decodeURIComponent(path.split('?')[0] ?? path)
+  let clean = path.split('?')[0] ?? path
+  try { clean = decodeURIComponent(clean) } catch { /* A literal % is valid in a filename. */ }
   const slash = Math.max(clean.lastIndexOf('/'), clean.lastIndexOf('\\'))
   return clean.slice(slash + 1)
 }
@@ -359,7 +367,8 @@ function backupKind(bytes: Uint8Array, filename: string): 'json' | 'xlsx' | 'csv
 }
 
 function decodeBackupText(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes)
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+  catch { return new TextDecoder('gb18030').decode(bytes) }
 }
 
 function parseCsvTable(source: string): string[][] {
@@ -398,7 +407,7 @@ function parseCsvTable(source: string): string[][] {
     row.push(cell)
     rows.push(row)
   }
-  return rows.filter(record => record.some(item => item.trim() !== ''))
+  return rows
 }
 
 function headerMap(headers: string[]): Map<string, number> {
@@ -408,7 +417,7 @@ function headerMap(headers: string[]): Map<string, number> {
 function column(row: string[], headers: Map<string, number>, ...names: string[]): string {
   for (const name of names) {
     const index = headers.get(name.replace(/\s/g, '').toLowerCase())
-    if (index !== undefined) return row[index]?.trim() ?? ''
+    if (index !== undefined && row[index]?.trim()) return row[index]!.trim()
   }
   return ''
 }
@@ -434,7 +443,9 @@ function dateFromValue(value: unknown, language: Language, rowNumber: number): s
       `The date on row ${rowNumber} could not be read`,
     )
   }
-  return `${match[1]}-${padDatePart(match[2] ?? '')}-${padDatePart(match[3] ?? '')}`
+  const date = `${match[1]}-${padDatePart(match[2] ?? '')}-${padDatePart(match[3] ?? '')}`
+  if (!z.iso.date().safeParse(date).success) throw backupError(language, `第 ${rowNumber} 行的日期无效`, `The date on row ${rowNumber} is invalid`)
+  return date
 }
 
 function amountFromValue(value: unknown, language: Language, rowNumber: number): number {
@@ -453,7 +464,7 @@ function amountFromValue(value: unknown, language: Language, rowNumber: number):
 
 function plainText(value: unknown): string {
   if (value == null) return ''
-  if (value instanceof Date) return dateFromValue(value, 'zh-CN', 0)
+  if (value instanceof Date) return value.toISOString()
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : ''
   if (typeof value === 'boolean') return value ? 'true' : 'false'
   if (typeof value === 'object') {
@@ -472,7 +483,7 @@ function sheetRows(sheet: Worksheet): string[][] {
   for (let index = 1; index <= sheet.rowCount; index += 1) {
     const row = sheet.getRow(index)
     const values = Array.from({ length: width }, (_, columnIndex) => plainText(row.getCell(columnIndex + 1).value).trim())
-    if (values.some(value => value !== '')) rows.push(values)
+    rows.push(values)
   }
   return rows
 }
@@ -515,7 +526,7 @@ function transactionTypeFromText(value: string): TxType | null {
 }
 
 function unescapeExportText(value: string): string {
-  return value.startsWith("'") ? value.slice(1) : value
+  return value.startsWith("'") && /^[=+\-@']/.test(value.slice(1).trimStart()) ? value.slice(1) : value
 }
 
 function clip(value: string, max: number): string {
@@ -558,8 +569,21 @@ function parsePocketRows(
   const transactions: LedgerSnapshot['transactions'] = []
   const nextSettings: Settings = { ...settings }
   let exportedAt = new Date().toISOString()
+  let schemaVersion = LEDGER_SCHEMA_VERSION
+  let formatVersion = BACKUP_FORMAT_VERSION
 
   for (const table of tables) {
+    if (table.name === '说明' || table.name === 'About') {
+      for (const row of table.rows) {
+        if (row[0] === '备份格式版本' || row[0] === 'Backup format version') formatVersion = Number(row[1])
+        if (row[0] === '数据库结构版本' || row[0] === 'Database schema version') schemaVersion = Number(row[1])
+        if (row[0] === '导出时间' || row[0] === 'Exported at') {
+          const value = new Date(row[1] ?? '')
+          if (!Number.isNaN(value.getTime())) exportedAt = value.toISOString()
+        }
+      }
+      continue
+    }
     const [header, ...records] = table.rows
     if (!header) continue
     const headers = headerMap(header)
@@ -571,6 +595,9 @@ function parsePocketRows(
       if (recordType === '元数据' || recordType === 'Metadata') {
         const key = column(row, headers, '设置键', 'Setting key')
         const value = column(row, headers, '设置值', 'Setting value')
+        const version = column(row, headers, '格式版本', 'Format version')
+        if (version) formatVersion = Number(version)
+        if (key === '数据库版本' || key === 'Schema version') schemaVersion = Number(value)
         if (key === '导出时间' || key === 'Exported at') {
           const parsed = new Date(value)
           if (!Number.isNaN(parsed.getTime())) exportedAt = parsed.toISOString()
@@ -606,6 +633,8 @@ function parsePocketRows(
         const category = unescapeExportText(column(row, headers, '分类', 'Category'))
         const note = unescapeExportText(column(row, headers, '备注', 'Note'))
         const transferId = column(row, headers, '转账ID', 'Transfer ID')
+        const sourceText = column(row, headers, '来源详情', 'Source detail')
+        const source = sourceText ? transactionSourceSchema.parse(JSON.parse(unescapeExportText(sourceText))) : undefined
         if (!type || !Number.isInteger(accountId) || accountId <= 0 || !category) {
           throw backupError(language, `第 ${rowNumber} 行的流水无法读取`, `The transaction on row ${rowNumber} could not be read`)
         }
@@ -619,6 +648,7 @@ function parsePocketRows(
           category: clip(category, 40),
           ...(note ? { note: clip(note, 200) } : {}),
           ...(transferId ? { transferId } : {}),
+          ...(source ? { source } : {}),
         })
       }
     })
@@ -626,8 +656,8 @@ function parsePocketRows(
 
   return checkedPreview({
     format: BACKUP_FORMAT,
-    formatVersion: BACKUP_FORMAT_VERSION,
-    schemaVersion: LEDGER_SCHEMA_VERSION,
+    formatVersion,
+    schemaVersion,
     exportedAt,
     data: { accounts, transactions, settings: nextSettings },
   }, language)
@@ -644,16 +674,23 @@ function parseSuishoujiRows(
   tables: Array<{ name: string, rows: string[][] }>,
   language: Language,
   settings: Settings,
+  file?: { fileName: string, fileId: string },
 ): LedgerBackupPreview {
-  const imported: Array<{ order: number, date: string, type: TxType, account: string, currency: Currency, amount: number, category: string, note?: string }> = []
+  const issues: LedgerImportIssue[] = []
+  let recognized = false
+  const imported: Array<{ order: number, date: string, type: TxType, account: string, currency: Currency, amount: number, category: string, note?: string, source?: TransactionSource }> = []
   let order = 0
   for (const table of tables) {
-    const [header, ...records] = table.rows
-    if (!header || !isSuishoujiHeader(header)) continue
+    const headerIndex = table.rows.slice(0, 50).findIndex(isSuishoujiHeader)
+    if (headerIndex < 0) continue
+    recognized = true
+    const header = table.rows[headerIndex]!
+    const records = table.rows.slice(headerIndex + 1)
     const headers = headerMap(header)
     records.forEach((row, index) => {
-      const rowNumber = index + 2
+      const rowNumber = headerIndex + index + 2
       if (row.every(cell => cell.trim() === '')) return
+      try {
       const type = transactionTypeFromText(column(row, headers, '交易类型'))
         ?? (table.name === '收入' ? 'income' : table.name === '支出' ? 'expense' : null)
       const account = column(row, headers, '支出账户', '收入账户', '账户')
@@ -671,11 +708,16 @@ function parseSuishoujiRows(
         amount: amountFromValue(column(row, headers, '金额'), language, rowNumber),
         category: clip(category, 40),
         ...(note ? { note: clip(note, 200) } : {}),
+        ...(file ? { source: transactionSourceSchema.parse({ format: 'suishouji', ...file, sheet: table.name, row: rowNumber,
+          fields: Object.fromEntries(header.map((key, index) => [key, row[index] ?? ''])) }) } : {}),
       })
       order += 1
+      } catch (error) {
+        issues.push({ file: file?.fileName ?? '', sheet: table.name, row: rowNumber, message: error instanceof Error ? error.message : String(error) })
+      }
     })
   }
-  if (imported.length === 0) {
+  if (!recognized) {
     throw backupError(
       language,
       '无法识别这份表格。请使用口袋账本或随手记导出的 Excel / CSV。',
@@ -707,7 +749,7 @@ function parseSuishoujiRows(
   }))
   const accountIds = new Map([...accounts.entries()].map(([key, account]) => [key, account.id]))
   const currencies = new Set(accountList.map(account => account.currency))
-  return checkedPreview({
+  const preview = checkedPreview({
     format: BACKUP_FORMAT,
     formatVersion: BACKUP_FORMAT_VERSION,
     schemaVersion: LEDGER_SCHEMA_VERSION,
@@ -723,6 +765,7 @@ function parseSuishoujiRows(
         currency: record.currency,
         category: record.category,
         ...(record.note ? { note: record.note } : {}),
+        ...(record.source ? { source: record.source } : {}),
       })),
       settings: {
         ...settings,
@@ -730,19 +773,21 @@ function parseSuishoujiRows(
       },
     },
   }, language, language === 'en' ? 'Suishouji spreadsheet' : '随手记表格')
+  return { ...preview, ...(issues.length ? { issues } : {}) }
 }
 
 function parseTableBackup(
   tables: Array<{ name: string, rows: string[][] }>,
   language: Language,
   settings: Settings,
+  file?: { fileName: string, fileId: string },
 ): LedgerBackupPreview {
   const headers = tables.map(table => table.rows[0] ?? [])
   if (headers.some(isPocketHeader) || tables.some(table => table.name === '账户' || table.name === 'Accounts')) {
-    const pocketTables = tables.filter(table => table.name === '账户' || table.name === '流水' || table.name === '设置' || table.name === 'Accounts' || table.name === 'Transactions' || table.name === 'Settings')
+    const pocketTables = tables.filter(table => ['账户', '流水', '设置', '说明', 'Accounts', 'Transactions', 'Settings', 'About'].includes(table.name))
     return parsePocketRows(pocketTables.length > 0 ? pocketTables : tables, language, settings)
   }
-  return parseSuishoujiRows(tables, language, settings)
+  return parseSuishoujiRows(tables, language, settings, file)
 }
 
 export function mergeLedgerBackups(
@@ -756,7 +801,7 @@ export function mergeLedgerBackups(
   if (previews.length === 1) return first
 
   const accounts = new Map<string, { name: string, type: AccountType, currency: Currency, opening: Decimal, sortOrder: number }>()
-  const transactions: Array<{ order: number, date: string, type: TxType, accountKey: string, amount: number, currency: Currency, category: string, note?: string, transferId?: string }> = []
+  const transactions: Array<{ order: number, date: string, type: TxType, accountKey: string, amount: number, currency: Currency, category: string, note?: string, transferId?: string, source?: TransactionSource }> = []
   const seen = new Set<string>()
   const usedTransferIds = new Set<string>()
   let transferSequence = 0
@@ -774,7 +819,7 @@ export function mergeLedgerBackups(
     const remappedTransferIds = new Map<string, string>()
     const identityOf = (item: LedgerSnapshot['transactions'][number]) => {
       const account = byId.get(item.accountId)!
-      return JSON.stringify([account.name, account.currency, item.date, item.type, item.amount, item.currency, item.category, item.note ?? ''])
+      return JSON.stringify([account.name, account.currency, item.date, item.type, item.amount, item.currency, item.category, item.note ?? '', item.source?.fields['日期'] ?? ''])
     }
     for (const item of preview.backup.data.transactions) {
       const net = sourceNets.get(item.accountId) ?? new Decimal(0)
@@ -835,6 +880,7 @@ export function mergeLedgerBackups(
         category: item.category,
         ...(item.note ? { note: item.note } : {}),
         ...(transferId ? { transferId } : {}),
+        ...(item.source ? { source: item.source } : {}),
       })
       order += 1
     }
@@ -881,10 +927,22 @@ export function mergeLedgerBackups(
         category: item.category,
         ...(item.note ? { note: item.note } : {}),
         ...(item.transferId ? { transferId: item.transferId } : {}),
+        ...(item.source ? { source: item.source } : {}),
       })),
       settings,
     },
   }, language, sourceLabel)
+}
+
+async function importFileId(bytes: Uint8Array): Promise<string> {
+  if (globalThis.crypto?.subtle) {
+    const hash = await globalThis.crypto.subtle.digest('SHA-256', toOwnedBytes(bytes).buffer)
+    return [...new Uint8Array(hash)].map(value => value.toString(16).padStart(2, '0')).join('')
+  }
+  let a = 0x811c9dc5
+  let b = 0x9e3779b9
+  for (const value of bytes) { a = Math.imul(a ^ value, 0x01000193); b = Math.imul(b ^ value, 0x85ebca6b) }
+  return `file-${bytes.length}-${(a >>> 0).toString(16)}-${(b >>> 0).toString(16)}`
 }
 
 export async function parseLedgerBackupBytes(
@@ -896,32 +954,30 @@ export async function parseLedgerBackupBytes(
   if (bytes.byteLength > 50 * 1024 * 1024) {
     throw backupError(language, '备份文件超过 50 MB，已拒绝读取', 'The backup is larger than 50 MB and cannot be opened')
   }
-  const kind = backupKind(bytes, filenameOf(filename))
-  if (kind === 'json') return parseLedgerJson(decodeBackupText(bytes), language)
+  const fileName = clip(filenameOf(filename), 255)
+  const fileId = await importFileId(bytes)
+  const file = { fileName, fileId }
+  const kind = backupKind(bytes, fileName)
+  if (kind === 'json') return { ...parseLedgerJson(decodeBackupText(bytes), language), ...file }
   if (kind === 'csv') {
     const rows = parseCsvTable(decodeBackupText(bytes))
-    return parseTableBackup([{ name: 'csv', rows }], language, settings)
+    return { ...parseTableBackup([{ name: 'csv', rows }], language, settings, file), ...file }
   }
   const ExcelJS = (await import('exceljs')).default
   const workbook = new ExcelJS.Workbook()
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
   await workbook.xlsx.load(buffer)
-  return parseTableBackup(
+  return { ...parseTableBackup(
     workbook.worksheets.map(sheet => ({ name: sheet.name, rows: sheetRows(sheet) })),
-    language,
-    settings,
-  )
-}
-
-function formatExportedAt(date: Date, language: Language): string {
-  return date.toLocaleString(language, { hour12: false })
+    language, settings, file,
+  ), ...file }
 }
 
 export function createLedgerCsv(snapshot: LedgerSnapshot, exportedAt = new Date()): string {
   const english = snapshot.settings.language === 'en'
   const headers = english
-    ? ['Record type', 'Format version', 'ID', 'Account ID', 'Account name', 'Account type', 'Date', 'Transaction type', 'Amount', 'Currency', 'Category', 'Note', 'Sort order', 'Setting key', 'Setting value', 'Transfer ID']
-    : ['记录类型', '格式版本', 'ID', '账户ID', '账户名称', '账户类型', '日期', '收支类型', '金额', '币种', '分类', '备注', '排序', '设置键', '设置值', '转账ID']
+    ? ['Record type', 'Format version', 'ID', 'Account ID', 'Account name', 'Account type', 'Date', 'Transaction type', 'Amount', 'Currency', 'Category', 'Note', 'Sort order', 'Setting key', 'Setting value', 'Transfer ID', 'Source detail']
+    : ['记录类型', '格式版本', 'ID', '账户ID', '账户名称', '账户类型', '日期', '收支类型', '金额', '币种', '分类', '备注', '排序', '设置键', '设置值', '转账ID', '来源详情']
   const labels = english
     ? { metadata: 'Metadata', account: 'Account', transaction: 'Transaction', settings: 'Setting', schema: 'Schema version', exportedAt: 'Exported at' }
     : { metadata: '元数据', account: '账户', transaction: '流水', settings: '设置', schema: '数据库版本', exportedAt: '导出时间' }
@@ -942,7 +998,7 @@ export function createLedgerCsv(snapshot: LedgerSnapshot, exportedAt = new Date(
     rows.push([
       labels.transaction, BACKUP_FORMAT_VERSION, transaction.id, transaction.accountId, null, null,
       transaction.date, english ? (transaction.type === 'income' ? 'Income' : 'Expense') : (transaction.type === 'income' ? '收入' : '支出'), transaction.amount, transaction.currency,
-      transaction.category, transaction.note ?? '', null, null, null, transaction.transferId ?? '',
+      transaction.category, transaction.note ?? '', null, null, null, transaction.transferId ?? '', transaction.source ? JSON.stringify(transaction.source) : '',
     ])
   }
 
@@ -1016,6 +1072,53 @@ export async function createLedgerXlsx(
   workbook.created = exportedAt
   workbook.modified = exportedAt
 
+  const accountNames = new Map(snapshot.accounts.map(account => [account.id, account.name]))
+  const transactions = workbook.addWorksheet(english ? 'Transactions' : '流水')
+  transactions.addRow(english ? ['ID', 'Date', 'Type code', 'Type', 'Account ID', 'Account name', 'Amount', 'Currency', 'Category', 'Note', 'Transfer ID', 'Source detail', 'Original date/time', 'Primary category', 'Member', 'Recorded by', 'Source file'] : ['ID', '日期', '收支类型代码', '收支类型', '账户ID', '账户名称', '金额', '币种', '分类', '备注', '转账ID', '来源详情', '原始时间', '一级分类', '成员', '记账人', '来源文件'])
+  transactions.addRows(snapshot.transactions.map(transaction => [
+    transaction.id,
+    parseDate(transaction.date),
+    transaction.type,
+    english ? (transaction.type === 'income' ? 'Income' : 'Expense') : (transaction.type === 'income' ? '收入' : '支出'),
+    transaction.accountId,
+    safeText(accountNames.get(transaction.accountId) ?? (english ? 'Unknown account' : '未知账户')),
+    transaction.amount,
+    transaction.currency,
+    safeText(transaction.category),
+    safeText(transaction.note ?? ''),
+    transaction.transferId ?? '',
+    transaction.source ? JSON.stringify(transaction.source) : '',
+    transaction.source?.fields['日期'] ?? '',
+    transaction.source?.fields['一级分类'] ?? '',
+    transaction.source?.fields['成员'] ?? '',
+    transaction.source?.fields['记账人'] ?? '',
+    transaction.source?.fileName ?? '',
+  ]))
+  styleDataSheet(transactions, [10, 14, 16, 12, 12, 24, 18, 12, 18, 36, 36, 48, 24, 18, 18, 18, 30], 2, 7)
+
+  const accounts = workbook.addWorksheet(english ? 'Accounts' : '账户')
+  accounts.addRow(english ? ['ID', 'Name', 'Type code', 'Type', 'Currency', 'Balance', 'Sort order'] : ['ID', '名称', '类型代码', '类型', '币种', '余额', '排序'])
+  accounts.addRows(snapshot.accounts.map(account => [
+    account.id,
+    safeText(account.name),
+    account.type,
+    english ? ACCOUNT_TYPE_LABELS_EN[account.type] : ACCOUNT_TYPE_LABELS[account.type],
+    account.currency,
+    account.balance,
+    account.sortOrder,
+  ]))
+  styleDataSheet(accounts, [10, 24, 14, 16, 12, 18, 10], undefined, 6)
+
+  const settings = workbook.addWorksheet(english ? 'Settings' : '设置')
+  settings.addRow(english ? ['Setting key', 'Setting value', 'Description'] : ['设置键', '设置值', '说明'])
+  settings.addRows([
+    ['baseCurrency', snapshot.settings.baseCurrency, english ? 'Base currency used in summaries and reports' : '摘要与报表使用的基准币种'],
+    ['masked', snapshot.settings.masked, english ? 'Whether amounts are hidden' : '是否隐藏金额'],
+    ['theme', snapshot.settings.theme, english ? 'Interface theme' : '界面主题'],
+    ['language', snapshot.settings.language, english ? 'Interface and export language' : '界面与导出语言'],
+  ])
+  styleDataSheet(settings, [24, 20, 42])
+
   const info = workbook.addWorksheet(english ? 'About' : '说明', { views: [{ showGridLines: false }] })
   info.mergeCells('A1:D1')
   info.getCell('A1').value = english ? `${PRODUCT_NAME} Data Backup` : `${PRODUCT_NAME}数据备份`
@@ -1028,7 +1131,7 @@ export async function createLedgerXlsx(
     english ? ['Item', 'Value'] : ['项目', '内容'],
     [english ? 'Backup format version' : '备份格式版本', BACKUP_FORMAT_VERSION],
     [english ? 'Database schema version' : '数据库结构版本', LEDGER_SCHEMA_VERSION],
-    [english ? 'Exported at' : '导出时间', formatExportedAt(exportedAt, snapshot.settings.language)],
+    [english ? 'Exported at' : '导出时间', exportedAt.toISOString()],
     [english ? 'Account count' : '账户数量', snapshot.accounts.length],
     [english ? 'Transaction count' : '流水数量', snapshot.transactions.length],
     [english ? 'About' : '说明', english ? 'Accounts, transactions, and settings are stored in separate worksheets. Keep the original IDs for future restore or migration.' : '账户、流水和设置分别保存在对应工作表中。请保留原始 ID，便于后续恢复或迁移。'],
@@ -1047,47 +1150,7 @@ export async function createLedgerXlsx(
   info.getCell('B9').alignment = { wrapText: true, vertical: 'top' }
   info.getRow(9).height = 38
 
-  const accounts = workbook.addWorksheet(english ? 'Accounts' : '账户')
-  accounts.addRow(english ? ['ID', 'Name', 'Type code', 'Type', 'Currency', 'Balance', 'Sort order'] : ['ID', '名称', '类型代码', '类型', '币种', '余额', '排序'])
-  accounts.addRows(snapshot.accounts.map(account => [
-    account.id,
-    safeText(account.name),
-    account.type,
-    english ? ACCOUNT_TYPE_LABELS_EN[account.type] : ACCOUNT_TYPE_LABELS[account.type],
-    account.currency,
-    account.balance,
-    account.sortOrder,
-  ]))
-  styleDataSheet(accounts, [10, 24, 14, 16, 12, 18, 10], undefined, 6)
-
-  const accountNames = new Map(snapshot.accounts.map(account => [account.id, account.name]))
-  const transactions = workbook.addWorksheet(english ? 'Transactions' : '流水')
-  transactions.addRow(english ? ['ID', 'Date', 'Type code', 'Type', 'Account ID', 'Account name', 'Amount', 'Currency', 'Category', 'Note', 'Transfer ID'] : ['ID', '日期', '收支类型代码', '收支类型', '账户ID', '账户名称', '金额', '币种', '分类', '备注', '转账ID'])
-  transactions.addRows(snapshot.transactions.map(transaction => [
-    transaction.id,
-    parseDate(transaction.date),
-    transaction.type,
-    english ? (transaction.type === 'income' ? 'Income' : 'Expense') : (transaction.type === 'income' ? '收入' : '支出'),
-    transaction.accountId,
-    safeText(accountNames.get(transaction.accountId) ?? (english ? 'Unknown account' : '未知账户')),
-    transaction.amount,
-    transaction.currency,
-    safeText(transaction.category),
-    safeText(transaction.note ?? ''),
-    transaction.transferId ?? '',
-  ]))
-  styleDataSheet(transactions, [10, 14, 16, 12, 12, 24, 18, 12, 18, 36, 36], 2, 7)
-
-  const settings = workbook.addWorksheet(english ? 'Settings' : '设置')
-  settings.addRow(english ? ['Setting key', 'Setting value', 'Description'] : ['设置键', '设置值', '说明'])
-  settings.addRows([
-    ['baseCurrency', snapshot.settings.baseCurrency, english ? 'Base currency used in summaries and reports' : '摘要与报表使用的基准币种'],
-    ['masked', snapshot.settings.masked, english ? 'Whether amounts are hidden' : '是否隐藏金额'],
-    ['theme', snapshot.settings.theme, english ? 'Interface theme' : '界面主题'],
-    ['language', snapshot.settings.language, english ? 'Interface and export language' : '界面与导出语言'],
-  ])
-  styleDataSheet(settings, [24, 20, 42])
-
+  workbook.views = [{ activeTab: 0, firstSheet: 0, x: 0, y: 0, width: 1200, height: 800, visibility: 'visible' }]
   const buffer = await workbook.xlsx.writeBuffer()
   return toOwnedBytes(new Uint8Array(buffer))
 }

@@ -17,6 +17,14 @@ const config = JSON.parse(readFileSync(
 )) as TauriSecurityConfig
 
 describe('Tauri content security policy', () => {
+  it('allows binary reads of user-selected backups on every native platform without a broad filesystem scope', () => {
+    const capability = JSON.parse(readFileSync(new URL('../src-tauri/capabilities/default.json', import.meta.url), 'utf8'))
+    expect(capability.platforms).toBeUndefined()
+    expect(capability.permissions).toContain('fs:allow-read-file')
+    expect(capability.permissions).toContain('dialog:allow-open')
+    expect(capability.permissions).not.toContain('fs:read-all')
+    expect(capability.permissions).not.toContain('fs:scope-home-recursive')
+  })
   it('blocks remote production content while preserving local IPC and app resources', () => {
     const { csp, dangerousDisableAssetCspModification } = config.app.security
 

@@ -129,6 +129,9 @@ pub(crate) fn migrate_database(database: &mut Connection) -> Result<(), String> 
                      CHECK (language IN ('zh-CN', 'en'));",
                 )
                 .map_err(database_error)?,
+            4 => transaction
+                .execute_batch("ALTER TABLE transactions ADD COLUMN source_json TEXT;")
+                .map_err(database_error)?,
             _ => return Err(format!("缺少数据库版本 {next_version} 的迁移脚本")),
         }
         transaction

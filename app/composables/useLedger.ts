@@ -13,6 +13,8 @@ import type {
   TransferInput,
 } from '../../shared/types/ledger'
 import { DEFAULT_SETTINGS } from '../../shared/types/ledger'
+import { BACKUP_FORMAT, BACKUP_FORMAT_VERSION, LEDGER_SCHEMA_VERSION } from '../../shared/types/ledger'
+import { snapshotIdentity } from '../../shared/utils/ledgerSnapshot'
 
 export type TabKey = 'dashboard' | 'reports' | 'transactions' | 'accounts' | 'settings'
 
@@ -59,6 +61,9 @@ export function useLedger() {
   const snapshotVersion = useState<number>('ledger-snapshot-version', () => 0)
   const lastError = useState<string | null>('ledger-error', () => null)
   const pendingCount = useState<number>('ledger-pending', () => 0)
+  const importUndo = useState<{ before: LedgerSnapshot, after: LedgerSnapshot } | null>('ledger-import-undo', () => null)
+  const canUndoImport = computed(() => importUndo.value !== null
+    && snapshotIdentity(state.value) === snapshotIdentity(importUndo.value.after))
 
   const busy = computed(() => pendingCount.value > 0)
   const base = computed(() => state.value.settings.baseCurrency)
@@ -244,6 +249,30 @@ export function useLedger() {
     const snapshot = await mutate(() => backend.restoreBackup(backup))
     if (!snapshot) return false
     hydrate(snapshot)
+    importUndo.value = null
+    return true
+  }
+
+  async function applyImport(backup: LedgerBackup, expected: LedgerSnapshot): Promise<boolean> {
+    const before = JSON.parse(JSON.stringify(expected)) as LedgerSnapshot
+    const snapshot = await mutate(() => backend.applyImport({ backup, expected }))
+    if (!snapshot) return false
+    hydrate(snapshot)
+    importUndo.value = { before, after: JSON.parse(JSON.stringify(snapshot)) as LedgerSnapshot }
+    return true
+  }
+
+  async function undoImport(): Promise<boolean> {
+    const undo = importUndo.value
+    if (!undo || !canUndoImport.value) return false
+    const snapshot = await mutate(() => backend.applyImport({
+      expected: undo.after,
+      backup: { format: BACKUP_FORMAT, formatVersion: BACKUP_FORMAT_VERSION,
+        schemaVersion: LEDGER_SCHEMA_VERSION, exportedAt: new Date().toISOString(), data: undo.before },
+    }))
+    if (!snapshot) return false
+    hydrate(snapshot)
+    importUndo.value = null
     return true
   }
 
@@ -283,6 +312,9 @@ export function useLedger() {
     updateSettings,
     clearAll,
     restoreBackup,
+    applyImport,
+    undoImport,
+    canUndoImport,
     toggleTheme,
   }
 }

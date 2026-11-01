@@ -34,5 +34,6 @@ export function createHttpLedgerBackend(request: HttpRequest): LedgerBackend {
     updateSettings: (next) => request<Settings>('/api/settings', { method: 'PUT', body: next }),
     clearAll: () => request<LedgerSnapshot>('/api/ledger', { method: 'DELETE' }),
     restoreBackup: (backup) => request<LedgerSnapshot>('/api/ledger/restore', { method: 'POST', body: backup }),
+    applyImport: (input) => request<LedgerSnapshot>('/api/ledger/import', { method: 'POST', body: input }),
   }
 }

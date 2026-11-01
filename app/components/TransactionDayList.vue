@@ -56,6 +56,11 @@ function askRemove(transaction: Transaction) {
               {{ accountName(transaction.accountId) }}
               <span v-if="transaction.transferId"> · {{ t(transaction.type === 'income' ? 'history.transferIn' : 'history.transferOut') }}</span>
             </p>
+            <details v-if="transaction.source && !state.settings.masked" class="source-detail">
+              <summary>{{ locale === 'en' ? 'Original import details' : '导入原始信息' }}</summary>
+              <p>{{ transaction.source.fileName }} · {{ transaction.source.sheet }} · {{ transaction.source.row }}</p>
+              <dl><template v-for="(value, key) in transaction.source.fields" :key="key"><template v-if="value"><dt>{{ key }}</dt><dd>{{ value }}</dd></template></template></dl>
+            </details>
           </div>
           <div class="transaction-end">
             <strong class="transaction-amount" :class="transaction.transferId ? 'transfer-amount' : transaction.type">
@@ -90,6 +95,10 @@ h4 span { font-weight: 400; }
 p { margin: 4px 0 0; overflow-wrap: anywhere; }
 .transaction-note { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .transaction-account { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.source-detail { margin-top: 7px; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.source-detail summary { cursor: pointer; }
+.source-detail dl { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 5px 10px; margin: 8px 0; }
+.source-detail dt,.source-detail dd { margin: 0; }
 .transaction-end { min-width: 0; max-width: 220px; text-align: right; }
 .transaction-amount { display: block; overflow-wrap: anywhere; font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .expense { color: var(--danger); }

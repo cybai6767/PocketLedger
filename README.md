@@ -69,9 +69,9 @@ The app listens on port `3000`. The `ledger-data` volume persists the database a
 ## Before you start
 
 - **Single-user:** no built-in login or multi-user permissions. Protect access when exposing the Web app beyond your machine.
-- **Independent ledgers:** Web, desktop, and Android do not automatically sync. Restore replaces the target ledger; multi-file merging combines only the selected files.
+- **Independent ledgers:** Web, desktop, and Android do not automatically sync. Import appends to the current ledger; full restore is separate. Both save automatic snapshots without forcing a JSON download.
 - **Demo exchange rates:** conversions use fixed built-in values, not live or historical rates.
-- **Import format:** Restore supports JSON, PocketLedger CSV/Excel, and Suishouji income/expense sheets. Prefer JSON for full migrations; old spreadsheets without transfer IDs cannot reliably restore transfer relationships.
+- **Import format:** Import supports JSON, PocketLedger CSV/Excel, and Suishouji income/expense sheets, with account mapping, explicit balance policies, duplicate/invalid-row review and original-field preservation. Undo is available before subsequent changes. Prefer JSON for full migrations; old spreadsheets without transfer IDs cannot reliably restore transfer relationships.
 - **Backup privacy:** exports contain actual amounts even when masked in the UI. Automatic snapshots retain seven files on the same storage as the database; they are not a separate cloud backup.
 
 ## For developers

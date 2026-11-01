@@ -1,0 +1,15 @@
+{
+  "initial": {
+    "accounts": [{"id":1,"name":"现金","type":"cash","currency":"CNY","balance":100,"sortOrder":0}],
+    "transactions": [{"id":1,"date":"2026-01-01","type":"income","accountId":1,"amount":10,"currency":"CNY","category":"零用钱"}],
+    "settings":{"baseCurrency":"CNY","masked":false,"theme":"dark","language":"zh-CN"}
+  },
+  "imported": {
+    "accounts": [{"id":1,"name":"现金","type":"cash","currency":"CNY","balance":100,"sortOrder":0}],
+    "transactions": [
+      {"id":1,"date":"2026-01-01","type":"income","accountId":1,"amount":10,"currency":"CNY","category":"零用钱"},
+      {"id":2,"date":"2025-12-30","type":"expense","accountId":1,"amount":12.34,"currency":"CNY","category":"早餐","source":{"format":"suishouji","fileName":"fixture.xlsx","fileId":"fixture-content-id","sheet":"支出","row":2,"fields":{"日期":"2025-12-30 09:12:34","一级分类":"饮食","二级分类":"早餐","成员":"测试成员","记账人":"测试用户","备注":"原始备注"}}}
+    ],
+    "settings":{"baseCurrency":"CNY","masked":false,"theme":"dark","language":"zh-CN"}
+  }
+}

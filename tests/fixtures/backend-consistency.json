@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "accounts": [
     { "name": "  现金钱包  ", "type": "wallet", "currency": "CNY", "balance": 100 },
     { "name": "美元账户", "type": "bank", "currency": "USD", "balance": 50 }

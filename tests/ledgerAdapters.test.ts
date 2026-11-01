@@ -29,6 +29,7 @@ const cases: { name: string, call: (backend: LedgerBackend) => Promise<unknown>,
   { name: 'settings', call: b => b.updateSettings(DEFAULT_SETTINGS), http: ['/api/settings', { method: 'PUT', body: DEFAULT_SETTINGS }], ipc: ['update_settings', { settings: DEFAULT_SETTINGS }] },
   { name: 'clear', call: b => b.clearAll(), http: ['/api/ledger', { method: 'DELETE' }], ipc: ['clear_ledger'] },
   { name: 'restore', call: b => b.restoreBackup(backup), http: ['/api/ledger/restore', { method: 'POST', body: backup }], ipc: ['restore_ledger', { backup }] },
+  { name: 'append import / guarded undo', call: b => b.applyImport({ backup, expected: backup.data }), http: ['/api/ledger/import', { method: 'POST', body: { backup, expected: backup.data } }], ipc: ['apply_import', { input: { backup, expected: backup.data } }] },
 ]
 
 describe.each(['http', 'ipc'] as const)('%s transport contract', platform => {

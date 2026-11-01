@@ -177,6 +177,27 @@ pub(crate) fn validate_backup(backup: &LedgerBackup) -> Result<(), String> {
             category: record.category.clone(),
             note: record.note.clone(),
         })?;
+        if let Some(source) = &record.source {
+            if !["suishouji", "pocketledger"].contains(&source.format.as_str())
+                || source.file_name.chars().count() > 255
+                || source.file_id.is_empty()
+                || source.file_id.len() > 128
+                || source.sheet.chars().count() > 255
+                || source.row <= 0
+                || source.fields.len() > 100
+                || source
+                    .fields
+                    .iter()
+                    .any(|(key, value)| key.chars().count() > 80 || value.chars().count() > 10_000)
+                || serde_json::to_string(&source.fields)
+                    .map_err(|error| error.to_string())?
+                    .chars()
+                    .count()
+                    > 64_000
+            {
+                return Err("导入来源数据无效或过长".to_string());
+            }
+        }
         if let Some(transfer_id) = record.transfer_id.as_deref() {
             if transfer_id.len() != 32
                 || !transfer_id.chars().all(|value| value.is_ascii_hexdigit())

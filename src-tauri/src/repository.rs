@@ -43,6 +43,10 @@ pub(crate) fn map_transaction(raw: RawTransaction) -> Result<LedgerTransaction, 
         category: raw.6,
         note: raw.7,
         transfer_id: raw.8,
+        source: raw
+            .9
+            .map(|text| serde_json::from_str(&text).map_err(|_| "导入来源数据无效".to_string()))
+            .transpose()?,
     })
 }
 
@@ -95,7 +99,7 @@ pub(crate) fn get_account(database: &Connection, id: i64) -> Result<Account, Str
 pub(crate) fn list_transactions(database: &Connection) -> Result<Vec<LedgerTransaction>, String> {
     let mut statement = database
         .prepare(
-            "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+            "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
              FROM transactions ORDER BY date DESC, id DESC",
         )
         .map_err(database_error)?;
@@ -111,6 +115,7 @@ pub(crate) fn list_transactions(database: &Connection) -> Result<Vec<LedgerTrans
                 row.get(6)?,
                 row.get(7)?,
                 row.get(8)?,
+                row.get(9)?,
             ))
         })
         .map_err(database_error)?;
@@ -122,7 +127,7 @@ pub(crate) fn list_transactions(database: &Connection) -> Result<Vec<LedgerTrans
 pub(crate) fn get_transaction(database: &Connection, id: i64) -> Result<LedgerTransaction, String> {
     let raw = database
         .query_row(
-            "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+            "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
              FROM transactions WHERE id = ?1",
             [id],
             |row| {
@@ -136,6 +141,7 @@ pub(crate) fn get_transaction(database: &Connection, id: i64) -> Result<LedgerTr
                     row.get(6)?,
                     row.get(7)?,
                     row.get(8)?,
+                    row.get(9)?,
                 ))
             },
         )
@@ -591,7 +597,7 @@ pub(crate) fn delete_transaction_record(
     let records = if let Some(transfer_id) = record.transfer_id.as_deref() {
         let mut statement = transaction
             .prepare(
-                "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+                "SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
                  FROM transactions WHERE transfer_id = ?1",
             )
             .map_err(database_error)?;
@@ -607,6 +613,7 @@ pub(crate) fn delete_transaction_record(
                     row.get(6)?,
                     row.get(7)?,
                     row.get(8)?,
+                    row.get(9)?,
                 ))
             })
             .map_err(database_error)?;
@@ -695,8 +702,31 @@ pub(crate) fn restore_ledger_record(
     database: &mut Connection,
     backup: &LedgerBackup,
 ) -> Result<LedgerSnapshot, String> {
+    restore_ledger_expected_record(database, backup, None)
+}
+
+pub(crate) fn restore_ledger_expected_record(
+    database: &mut Connection,
+    backup: &LedgerBackup,
+    expected: Option<&LedgerSnapshot>,
+) -> Result<LedgerSnapshot, String> {
     validate_backup(backup)?;
-    let transaction = database.transaction().map_err(database_error)?;
+    let transaction = database
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(database_error)?;
+    if let Some(expected) = expected {
+        let mut current = snapshot(&transaction)?;
+        let mut expected = expected.clone();
+        current.accounts.sort_by_key(|item| item.id);
+        expected.accounts.sort_by_key(|item| item.id);
+        current.transactions.sort_by_key(|item| item.id);
+        expected.transactions.sort_by_key(|item| item.id);
+        if serde_json::to_value(&current).map_err(|error| error.to_string())?
+            != serde_json::to_value(&expected).map_err(|error| error.to_string())?
+        {
+            return Err("账本已变化，请重新预览；撤销仅适用于后续未修改的账本".to_string());
+        }
+    }
     transaction
         .execute("DELETE FROM transactions", [])
         .map_err(database_error)?;
@@ -741,8 +771,8 @@ pub(crate) fn restore_ledger_record(
         transaction
             .execute(
                 "INSERT INTO transactions
-                 (id, account_id, date, type, amount, currency, category, note, transfer_id)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                 (id, account_id, date, type, amount, currency, category, note, transfer_id, source_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     record.id,
                     record.account_id,
@@ -757,6 +787,7 @@ pub(crate) fn restore_ledger_record(
                         .map(str::trim)
                         .filter(|note| !note.is_empty()),
                     record.transfer_id,
+                    record.source.as_ref().map(serde_json::to_string).transpose().map_err(|error| error.to_string())?,
                 ],
             )
             .map_err(database_error)?;

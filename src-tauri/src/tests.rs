@@ -3,6 +3,88 @@ use rusqlite::Connection;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+struct ImportFixture {
+    initial: LedgerSnapshot,
+    imported: LedgerSnapshot,
+}
+
+fn import_backup(data: LedgerSnapshot) -> LedgerBackup {
+    LedgerBackup {
+        format: BACKUP_FORMAT.to_string(),
+        format_version: BACKUP_FORMAT_VERSION,
+        schema_version: CURRENT_SCHEMA_VERSION,
+        exported_at: "2026-11-01T00:00:00Z".to_string(),
+        data,
+    }
+}
+
+#[test]
+fn native_import_and_undo_matches_shared_fixture_without_losing_source_fields() {
+    let fixture: ImportFixture =
+        serde_json::from_str(include_str!("../../tests/fixtures/import-workflow.json")).unwrap();
+    let mut database = Connection::open_in_memory().unwrap();
+    migrate_database(&mut database).unwrap();
+    let before = restore_ledger_record(&mut database, &import_backup(fixture.initial)).unwrap();
+    let imported = restore_ledger_expected_record(
+        &mut database,
+        &import_backup(fixture.imported.clone()),
+        Some(&before),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&imported).unwrap(),
+        serde_json::to_value(&fixture.imported).unwrap()
+    );
+    assert_eq!(imported.accounts[0].balance, 100.0);
+    let original = imported.transactions[1].source.as_ref().unwrap();
+    assert_eq!(original.fields["日期"], "2025-12-30 09:12:34");
+    assert_eq!(original.fields["成员"], "测试成员");
+    let undone = restore_ledger_expected_record(
+        &mut database,
+        &import_backup(before.clone()),
+        Some(&imported),
+    )
+    .unwrap();
+    assert_eq!(
+        serde_json::to_value(&undone).unwrap(),
+        serde_json::to_value(&before).unwrap()
+    );
+    let mut changed_settings = before.settings.clone();
+    changed_settings.masked = true;
+    update_settings_record(&database, &changed_settings).unwrap();
+    let changed = snapshot(&database).unwrap();
+    assert!(restore_ledger_expected_record(
+        &mut database,
+        &import_backup(fixture.imported),
+        Some(&before)
+    )
+    .unwrap_err()
+    .contains("账本已变化"));
+    assert_eq!(
+        serde_json::to_value(snapshot(&database).unwrap()).unwrap(),
+        serde_json::to_value(changed).unwrap()
+    );
+}
+
+#[test]
+fn migrates_v3_to_v4_without_changing_existing_entries_or_balances() {
+    let fixture: ImportFixture =
+        serde_json::from_str(include_str!("../../tests/fixtures/import-workflow.json")).unwrap();
+    let mut database = Connection::open_in_memory().unwrap();
+    migrate_database(&mut database).unwrap();
+    restore_ledger_record(&mut database, &import_backup(fixture.initial.clone())).unwrap();
+    database
+        .execute_batch("ALTER TABLE transactions DROP COLUMN source_json; PRAGMA user_version = 3;")
+        .unwrap();
+    migrate_database(&mut database).unwrap();
+    assert_eq!(schema_version(&database).unwrap(), 4);
+    assert_eq!(
+        serde_json::to_value(snapshot(&database).unwrap()).unwrap(),
+        serde_json::to_value(fixture.initial).unwrap()
+    );
+}
+
+#[derive(Deserialize)]
 struct EditFixture {
     id: i64,
     input: TransactionInput,
@@ -442,6 +524,7 @@ fn restore_fixture() -> LedgerBackup {
                 category: "其他".to_string(),
                 note: Some("恢复测试".to_string()),
                 transfer_id: None,
+                source: None,
             }],
             settings: Settings {
                 base_currency: "USD".to_string(),

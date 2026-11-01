@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import Decimal from 'decimal.js'
 import { createError } from 'h3'
+import { snapshotIdentity } from '../../shared/utils/ledgerSnapshot'
 import type {
   Account,
   AccountInput,
@@ -45,6 +46,7 @@ interface TransactionRow {
   category: string
   note: string | null
   transfer_id: string | null
+  source_json: string | null
 }
 
 interface SettingsRow {
@@ -135,6 +137,7 @@ function mapTransaction(row: TransactionRow): Transaction {
     category: row.category,
     note: row.note ?? undefined,
     transferId: row.transfer_id ?? undefined,
+    ...(row.source_json ? { source: JSON.parse(row.source_json) as Transaction['source'] } : {}),
   }
 }
 
@@ -149,7 +152,7 @@ export function listAccounts(database: LedgerDatabase): Account[] {
 
 export function listTransactions(database: LedgerDatabase): Transaction[] {
   const rows = database.prepare(`
-    SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+    SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
     FROM transactions
     ORDER BY date DESC, id DESC
   `).all() as TransactionRow[]
@@ -305,7 +308,7 @@ export function createTransaction(
     )
 
     const row = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id = ?
     `).get(Number(result.lastInsertRowid)) as TransactionRow
 
@@ -321,7 +324,7 @@ export function updateTransaction(
   saveAutomaticBackup(database)
   return database.transaction(() => {
     const previous = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id = ?
     `).get(id) as TransactionRow | undefined
     if (!previous) throw createError({ statusCode: 404, message: '交易不存在' })
@@ -346,7 +349,7 @@ export function updateTransaction(
     const accountIds = [...new Set([previous.account_id, input.accountId])]
     const accounts = accountIds.map(accountId => recalculateAccount(database, accountId))
     const row = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id = ?
     `).get(id) as TransactionRow
     return { transactions: [mapTransaction(row)], accounts }
@@ -378,7 +381,7 @@ export function createTransfer(
     const expense = insert.run(from.id, input.date, 'expense', amount, from.currency, note, transferId)
     const income = insert.run(to.id, input.date, 'income', amount, to.currency, note, transferId)
     const rows = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id IN (?, ?) ORDER BY id
     `).all(Number(expense.lastInsertRowid), Number(income.lastInsertRowid)) as TransactionRow[]
     return {
@@ -399,14 +402,14 @@ export function updateTransfer(
       throw createError({ statusCode: 400, message: '转出账户和转入账户不能相同' })
     }
     const selected = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id = ?
     `).get(id) as TransactionRow | undefined
     if (!selected) throw createError({ statusCode: 404, message: '交易不存在' })
     if (!selected.transfer_id) throw createError({ statusCode: 409, message: '这条流水不是账户转账' })
 
     const previous = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE transfer_id = ? ORDER BY id
     `).all(selected.transfer_id) as TransactionRow[]
     const expense = previous.find(record => record.type === 'expense')
@@ -436,7 +439,7 @@ export function updateTransfer(
       input.toAccountId,
     ])]
     const rows = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE transfer_id = ? ORDER BY id
     `).all(selected.transfer_id) as TransactionRow[]
     return {
@@ -453,13 +456,13 @@ export function deleteTransaction(
   saveAutomaticBackup(database)
   return database.transaction(() => {
     const row = database.prepare(`
-      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+      SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
       FROM transactions WHERE id = ?
     `).get(id) as TransactionRow | undefined
     if (!row) throw createError({ statusCode: 404, message: '交易不存在' })
     const rows = row.transfer_id
       ? database.prepare(`
-          SELECT id, account_id, date, type, amount, currency, category, note, transfer_id
+          SELECT id, account_id, date, type, amount, currency, category, note, transfer_id, source_json
           FROM transactions WHERE transfer_id = ?
         `).all(row.transfer_id) as TransactionRow[]
       : [row]
@@ -516,9 +519,12 @@ export function clearLedger(database: LedgerDatabase): LedgerSnapshot {
   return getSnapshot(database)
 }
 
-export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup): LedgerSnapshot {
-  saveAutomaticBackup(database)
-  database.transaction(() => {
+export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup, expected?: LedgerSnapshot): LedgerSnapshot {
+  return database.transaction(() => {
+    if (expected && snapshotIdentity(getSnapshot(database)) !== snapshotIdentity(expected)) {
+      throw createError({ statusCode: 409, message: '账本已变化，请重新预览；撤销仅适用于后续未修改的账本' })
+    }
+    saveAutomaticBackup(database)
     database.prepare('DELETE FROM transactions').run()
     database.prepare('DELETE FROM accounts').run()
 
@@ -547,8 +553,8 @@ export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup): L
     }
 
     const insertTransaction = database.prepare(`
-      INSERT INTO transactions (id, account_id, date, type, amount, currency, category, note, transfer_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (id, account_id, date, type, amount, currency, category, note, transfer_id, source_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     for (const transaction of backup.data.transactions) {
       insertTransaction.run(
@@ -561,6 +567,7 @@ export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup): L
         transaction.category,
         transaction.note || null,
         transaction.transferId || null,
+        transaction.source ? JSON.stringify(transaction.source) : null,
       )
     }
 
@@ -585,6 +592,6 @@ export function restoreLedger(database: LedgerDatabase, backup: LedgerBackup): L
       database.prepare('INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)')
         .run('transactions', maxTransactionId)
     }
-  })()
-  return getSnapshot(database)
+    return getSnapshot(database)
+  }).immediate()
 }
