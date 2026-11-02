@@ -18,8 +18,8 @@ const {
   setError,
   setTab,
   netWorth,
-  monthIncome,
-  monthExpense,
+  totalIncome,
+  totalExpense,
   toggleTheme,
 } = useLedger()
 const { locale, t } = useLocale()
@@ -148,18 +148,18 @@ async function retry() {
             <strong class="value">{{ formatMoney(netWorth) }}</strong>
           </div>
         </div>
-        <div class="summary-card income">
-          <span class="summary-icon">↗</span>
-          <div>
-            <span class="label">{{ t('summary.income') }}</span>
-            <strong class="value">{{ formatMoney(monthIncome) }}</strong>
-          </div>
-        </div>
         <div class="summary-card expense">
           <span class="summary-icon">↘</span>
           <div>
             <span class="label">{{ t('summary.expense') }}</span>
-            <strong class="value">{{ formatMoney(monthExpense) }}</strong>
+            <strong class="value">{{ formatMoney(totalExpense) }}</strong>
+          </div>
+        </div>
+        <div class="summary-card income">
+          <span class="summary-icon">↗</span>
+          <div>
+            <span class="label">{{ t('summary.income') }}</span>
+            <strong class="value">{{ formatMoney(totalIncome) }}</strong>
           </div>
         </div>
       </section>

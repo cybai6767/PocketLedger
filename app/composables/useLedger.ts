@@ -123,17 +123,12 @@ export function useLedger() {
     0,
   ))
 
-  function thisMonth() {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  }
-
-  const monthIncome = computed(() => state.value.transactions
-    .filter(transaction => !transaction.transferId && transaction.type === 'income' && transaction.date.startsWith(thisMonth()))
+  const totalIncome = computed(() => state.value.transactions
+    .filter(transaction => !transaction.transferId && transaction.type === 'income')
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
-  const monthExpense = computed(() => state.value.transactions
-    .filter(transaction => !transaction.transferId && transaction.type === 'expense' && transaction.date.startsWith(thisMonth()))
+  const totalExpense = computed(() => state.value.transactions
+    .filter(transaction => !transaction.transferId && transaction.type === 'expense')
     .reduce((sum, transaction) => sum + toBase(transaction.amount, transaction.currency), 0))
 
   async function addAccount(input: AccountInput): Promise<boolean> {
@@ -290,8 +285,8 @@ export function useLedger() {
     busy,
     base,
     netWorth,
-    monthIncome,
-    monthExpense,
+    totalIncome,
+    totalExpense,
     hydrate,
     loadSnapshot,
     loadLatestAutomaticBackup,
